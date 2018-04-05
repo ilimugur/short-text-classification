@@ -14,6 +14,8 @@ Additionally, although the tool supports taking a couple of different word embed
 
 Similarly, the datasets supported should be downloaded and/or unzipped by the user separately. Currently, the only supported dataset is [SwDA](https://web.stanford.edu/~jurafsky/ws97/), and the dataset is also included in the swda submodule inside the repo. However, the user should unzip the file into a desired directory, as the tool itself does not handle the unzipping operation.
 
+Finally, if `--save-model` option is to be used, the Python module [h5py](https://pypi.python.org/pypi/h5py) is required, and it can be installed via [pip](https://pip.pypa.io/en/stable/installing/).
+
 ##### Word Embeddings:
 - [Word2Vec](https://code.google.com/archive/p/word2vec/): Download file from [here](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing)
 - [GloVe](https://nlp.stanford.edu/projects/glove/): Download file from [here](http://nlp.stanford.edu/data/glove.twitter.27B.zip)
