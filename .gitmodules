@@ -1,0 +1,3 @@
+[submodule "swda"]
+	path = swda
+	url = https://github.com/cgpotts/swda.git
