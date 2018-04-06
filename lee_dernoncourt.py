@@ -102,7 +102,7 @@ def evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num
                                                                      timesteps, num_word_dimensions,
                                                                      num_tags),
                                      steps = num_testing_steps)
-    return score
+    return score[1]
 
 def lee_dernoncourt(dataset_loading_function, dataset_file_path,
                     embedding_loading_function, embedding_file_path,
@@ -120,7 +120,7 @@ def lee_dernoncourt(dataset_loading_function, dataset_file_path,
                                               loss_function, optimizer)
         train_lee_dernoncourt(model, training, validation, timesteps, num_word_dimensions, num_tags)
     score = evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num_tags)
-    print(score)
+    print("Accuracy: " + str(score * 100) + "%")
     return model
 
 
