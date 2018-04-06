@@ -105,8 +105,8 @@ def evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num
     return score
 
 def lee_dernoncourt(dataset_loading_function, dataset_file_path,
-                  embedding_loading_function, embedding_file_path,
-                  loss_function, optimizer):
+                    embedding_loading_function, embedding_file_path,
+                    loss_function, optimizer, model = None):
     data, dimensions = prepare_data(dataset_loading_function, dataset_file_path,
                                     embedding_loading_function, embedding_file_path)
     (vectorized_talks, talk_names), (timesteps, num_word_dimensions, num_tags) = (data, dimensions)
@@ -115,9 +115,10 @@ def lee_dernoncourt(dataset_loading_function, dataset_file_path,
     vectorized_talks.clear()
     talk_names.clear()
 
-    model = prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
-                                          loss_function, optimizer)
-    train_lee_dernoncourt(model, training, validation, timesteps, num_word_dimensions, num_tags)
+    if model is None:
+        model = prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
+                                              loss_function, optimizer)
+        train_lee_dernoncourt(model, training, validation, timesteps, num_word_dimensions, num_tags)
     score = evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num_tags)
     print(score)
     return model

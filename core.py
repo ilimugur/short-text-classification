@@ -1,6 +1,7 @@
 import argparse
 import inspect
 from keras import losses, optimizers
+from keras.models import load_model
 from lee_dernoncourt import lee_dernoncourt
 from embedding import read_word2vec, read_glove_twitter
 from dataset import load_swda_corpus_data
@@ -44,6 +45,7 @@ if __name__ == "__main__":
     parser.add_argument('--loss-function', type=str, help='Loss function to use.')
     parser.add_argument('--optimizer', type=str, help='Optimizer to use.')
     parser.add_argument('--save-model', action='store_true', help='Save model once training is complete.')
+    parser.add_argument('--load-model', type=str, help='Load pretrained model from a .h5 file and print its accuracy.')
 
     args = parser.parse_args()
     if args.loss_functions:
@@ -82,11 +84,16 @@ if __name__ == "__main__":
                 dataset_loading_function = datasets[args.dataset[0]]
                 dataset_file_path = args.dataset[1]
 
+                trained_model = None
+                if args.load_model:
+                    trained_model = load_model(args.load_model)
+
                 trained_model = model(dataset_loading_function, dataset_file_path,
                                       embedding_loading_function, embedding_file_path,
-                                      loss_function, optimizer)
-                if args.save_model:
-                    trained_model.save(args.model + '_' + args.embedding[0] + '_' + args.dataset[0] +\
-                                       '_' + args.loss_function + '_' + args.optimizer + '.h5')
+                                      loss_function, optimizer, trained_model)
+                if args.load_model is None and args.save_model:
+                    trained_model.save(args.model + '_' + args.embedding[0] + '_' +\
+                                       args.dataset[0] + '_' +\
+                                       args.loss_function + '_' + args.optimizer + '.h5')
         else:
             print("Please enter all required argument. Use --help to review required arguments.")
