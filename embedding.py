@@ -37,7 +37,7 @@ def read_glove_twitter(file_name):
         line = f.readline()
         if line == '':
             break
-        read_values = line.split()
+        read_values = line.split(' ')
         del line
         word = read_values[0]
         tmp_list = [float(dim_val) for dim_val in read_values[1:]]
