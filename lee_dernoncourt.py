@@ -81,13 +81,14 @@ def prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
                   metrics=['accuracy'])
     return model
 
-def train_lee_dernoncourt(model, training, validation, timesteps, num_word_dimensions, num_tags):
+def train_lee_dernoncourt(model, training, validation, num_epochs_to_train,
+                          timesteps, num_word_dimensions, num_tags):
     num_training_steps = len(training[0])
     num_validation_steps = len(validation[0])
     model.fit_generator(lee_dernoncourt_batch_generator(training[0], training[1],
                                                         timesteps, num_word_dimensions, num_tags),
                         steps_per_epoch = num_training_steps,
-                        epochs = 10,
+                        epochs = num_epochs_to_train,
                         validation_data = lee_dernoncourt_batch_generator(validation[0],
                                                                           validation[1],
                                                                           timesteps,
@@ -106,21 +107,33 @@ def evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num
 
 def lee_dernoncourt(dataset_loading_function, dataset_file_path,
                     embedding_loading_function, embedding_file_path,
-                    loss_function, optimizer, model = None):
+                    num_epochs_to_train, loss_function, optimizer,
+                    load_from_model_file, save_model, model_filename):
     data, dimensions = prepare_data(dataset_loading_function, dataset_file_path,
                                     embedding_loading_function, embedding_file_path)
-    (vectorized_talks, talk_names), (timesteps, num_word_dimensions, num_tags) = (data, dimensions)
+    vectorized_talks, talk_names, tag_indices = data
+    max_conversation_length, timesteps, num_word_dimensions, num_tags = dimensions
     training, validation, testing = form_datasets(vectorized_talks, talk_names,
                                                       timesteps, num_word_dimensions)
     vectorized_talks.clear()
     talk_names.clear()
 
-    if model is None:
+    if load_model_from_file:
+        model = load_model(load_model_from_file)
+    else:
         model = prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
                                               loss_function, optimizer)
-        train_lee_dernoncourt(model, training, validation, timesteps, num_word_dimensions, num_tags)
+
+    if num_epochs_to_train > 0:
+        train_lee_dernoncourt(model, training, validation, num_epochs_to_train,
+                              timesteps, num_word_dimensions, num_tags)
+
     score = evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num_tags)
     print("Accuracy: " + str(score * 100) + "%")
+
+    if save_model:
+        model.save(model_filename)
+
     return model
 
 

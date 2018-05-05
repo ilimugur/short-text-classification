@@ -7,7 +7,8 @@ from embedding import read_word2vec, read_glove_twitter
 from dataset import load_swda_corpus_data
 
 models =     {
-                'Lee-Dernoncourt': lee_dernoncourt
+                'Lee-Dernoncourt': lee_dernoncourt,
+                'KADJK': kadjk
              }
 
 embeddings = {
@@ -47,6 +48,9 @@ if __name__ == "__main__":
     parser.add_argument('--save-model', action='store_true', help='Save model once training is complete.')
     parser.add_argument('--load-model', type=str, help='Load pretrained model from a .h5 file and print its accuracy.')
 
+    parser.add_argument('--train', nargs=1, metavar=('NUM_EPOCHS'), type=int, help='Train the specified network for given number of epochs.')
+    # TODO: Add a parameter that helps a trained network evaluate a sample conversation
+
     args = parser.parse_args()
     if args.loss_functions:
         loss_functions = inspect.getmembers(losses, inspect.isfunction)
@@ -83,17 +87,21 @@ if __name__ == "__main__":
                 embedding_file_path = args.embedding[1]
                 dataset_loading_function = datasets[args.dataset[0]]
                 dataset_file_path = args.dataset[1]
+                load_from_model_file = args.load_model
+                save_model = (args.save_model is not None)
 
-                trained_model = None
-                if args.load_model:
-                    trained_model = load_model(args.load_model)
+                if args.train:
+                    num_epochs_to_train = args.train[0]
+                else:
+                    num_epochs_to_train = 0
 
-                trained_model = model(dataset_loading_function, dataset_file_path,
-                                      embedding_loading_function, embedding_file_path,
-                                      loss_function, optimizer, trained_model)
-                if args.load_model is None and args.save_model:
-                    trained_model.save(args.model + '_' + args.embedding[0] + '_' +\
-                                       args.dataset[0] + '_' +\
-                                       args.loss_function + '_' + args.optimizer + '.h5')
+                model_filename = args.model + '_' + args.embedding[0] + '_' +\
+                                 args.dataset[0] + '_' + args.loss_function + '_' +\
+                                 args.optimizer + '_' + str(num_epochs_to_train) + '.h5'
+
+                model(dataset_loading_function, dataset_file_path,
+                      embedding_loading_function, embedding_file_path,
+                      num_epochs_to_train, loss_function, optimizer,
+                      load_from_model_file, save_model, model_filename)
         else:
             print("Please enter all required argument. Use --help to review required arguments.")

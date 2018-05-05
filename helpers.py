@@ -1,3 +1,5 @@
+import numpy
+
 def prune_swda_corpus_data(talks):
     print('Pruning SwDA Corpus data...\n')
     inappropriate_words = set()
@@ -206,6 +208,15 @@ def vectorize_talks(talks, word_vec_dict, num_word_dimensions):
     print('Vectorized SwDA Corpus data.')
     return vectorized_talks
 
+def find_longest_conversation_length(talks):
+    max_conversation_length = 0
+    for talk in talks:
+        if max_conversation_length < len(talk[0]):
+            max_conversation_length = len(talk[0])
+
+    print('Found max_conversation_length:' + str(max_conversation_length))
+    return max_conversation_length
+
 def find_max_utterance_length(talks):
     max_utterance_length = 0
     for talk in talks:
@@ -216,13 +227,42 @@ def find_max_utterance_length(talks):
     print('Found max_utterance_length:' + str(max_utterance_length))
     return max_utterance_length
 
+def arrange_word_to_vec_dict(talks, word_vec_dict, num_word_dimensions):
+    seen_words = set()
+    # From a set of seen words
+    for talk in talks:
+        for utterance in talk[0]:
+            for word in utterance:
+                lowercase_word = word.lower()
+                seen_words.add(lowercase_word)
 
+    # Remove words that are not in the dataset
+    to_be_deleted = []
+    for word in word_vec_dict.keys():
+        if word not in seen_words:
+            to_be_deleted.append(word)
+
+    for word in to_be_deleted:
+        del word_vec_dict[word]
+
+    # Add random vectors for words that are not seen in the embedding
+    for word in seen_words:
+        if word not in word_vec_dict:
+            word_vec_dict[word] = numpy.zeros(num_word_dimensions)
+
+def form_word_to_index_dict_from_dataset(word_vec_dict):
+    word_to_index = {}
+    next_index_to_assign = 1
+    for key in word_vec_dict.keys():
+        word_to_index[key] = next_index_to_assign
+        next_index_to_assign += 1
+    return word_to_index
 
 def prepare_data(dataset_loading_function, dataset_file_path,
                  embedding_loading_function, embedding_file_path):
     # Read dataset
-    read_talks, talk_names, tags, tag_occurances = dataset_loading_function(dataset_file_path)
-    num_tags = len(tags.keys())
+    read_talks, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
+    num_tags = len(tag_indices.keys())
 
     #Prune word data
     talks = prune_swda_corpus_data(read_talks)
@@ -237,6 +277,8 @@ def prepare_data(dataset_loading_function, dataset_file_path,
     word_vec_dict.clear()
 
     max_utterance_len = find_max_utterance_length(vectorized_talks)
+    max_conversation_len = find_longest_conversation_length(vectorized_talks)
 
-    return (vectorized_talks, talk_names), (max_utterance_len, num_word_dimensions, num_tags)
+    return (vectorized_talks, talk_names, tag_indices), (max_conversation_len, max_utterance_len,
+                                                         num_word_dimensions, num_tags)
 
