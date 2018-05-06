@@ -3,6 +3,7 @@ import inspect
 from keras import losses, optimizers
 from keras.models import load_model
 from lee_dernoncourt import lee_dernoncourt
+from kadjk import kadjk
 from embedding import read_word2vec, read_glove_twitter
 from dataset import load_swda_corpus_data
 

@@ -9,7 +9,6 @@ from keras.callbacks import EarlyStopping, LearningRateScheduler
 from keras_contrib.layers import CRF
 from keras_contrib.utils import save_load_utils
 from keras.utils import to_categorical
-from kadjk import kadjk
 from train_set_preferences import valid_set_idx, test_set_idx
 from helpers import prepare_data
 from helpers import arrange_word_to_vec_dict, form_word_to_index_dict_from_dataset
