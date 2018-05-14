@@ -212,6 +212,25 @@ def kadjk(dataset_loading_function, dataset_file_path,
                     loss_function, optimizer, load_model_from_file, save_model, model_filename):
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
 
+    found_words_list = []
+    found_words_set = set()
+    words_set = set()
+    num_total_words = 0
+    for c in talks_read:
+        for u in c[0]:
+            for i in range(len(u)):
+                w = u[i]
+                num_total_words += 1
+                words_set.add(w)
+                if w.rstrip(',') != w or w.rstrip('.') != w or w.rstrip('?') != w or w.rstrip('!') != w:
+                    found_words_list.append(w)
+                    found_words_set.add(w)
+                    u[i] = w.rstrip(',').rstrip('.').rstrip('?').rstrip('!')
+#    print("Number of word occurances found which should be modified:" + str(len(found_words_list)))
+#    print("Number of different words found to be modified:" + str(len(found_words_set)))
+#    print("Number of total word occurances found:" + str(num_total_words))
+#    print("Number of total words found:" + str(len(words_set)))
+
     num_words, num_word_dimensions, word_vec_dict = embedding_loading_function(embedding_file_path)
 
     timesteps = find_max_utterance_length(talks_read)

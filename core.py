@@ -89,7 +89,7 @@ if __name__ == "__main__":
                 dataset_loading_function = datasets[args.dataset[0]]
                 dataset_file_path = args.dataset[1]
                 load_from_model_file = args.load_model
-                save_model = (args.save_model is not None)
+                save_model = args.save_model
 
                 if args.train:
                     num_epochs_to_train = args.train[0]
