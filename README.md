@@ -6,6 +6,10 @@ The models implemented are the ones described in the papers referenced below. I 
 
 - [J. Y. Lee, and F. Dernoncourt, "Sequential short text  classification with  recurrent  and  convolutional  neural  networks,"  arXiv  preprint arXiv:1603.03827, 2016.](https://arxiv.org/abs/1603.03827)
 
+- [H. Kumar, A. Agarwal, R. Dasgupta, S. Joshi, A. Kumar, "Dialogue Act Sequence Labeling using Hierarchical encoder with CRF,"  arXiv  preprint arXiv:1709.04250, 2017.](https://arxiv.org/abs/1709.04250)
+
+Note that, for a while, these models may yield a much lower training, validation and testing accuracy due to implementation issues.
+
 
 ### Requirements
 This tool requires quite a few libraries as prerequisites. It uses [Keras](https://keras.io/) and, naturally, all its prerequisites. It also requires [TensorFlow](https://www.tensorflow.org/).
