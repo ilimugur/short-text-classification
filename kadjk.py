@@ -2,6 +2,7 @@ import copy
 import random
 import numpy
 from keras.models import Sequential
+from keras import regularizers
 from keras.layers import Dense, Dropout
 from keras.layers import GlobalMaxPooling1D
 from keras.layers import Embedding, LSTM, Bidirectional, TimeDistributed
@@ -138,20 +139,23 @@ def prepare_kadjk_model(max_mini_batch_size,
 
     # define inputs here
     embedding_layer = Embedding(dictionary_size, num_word_dimensions,
-                                weights=[embedding_weights], mask_zero=True)
+                                weights=[embedding_weights], mask_zero=True,
+                                embeddings_regularizer=regularizers.l2(0.0001))
     model.add(TimeDistributed(embedding_layer,
                               input_shape=(max_conversation_length, timesteps)))
 
-    model.add(TimeDistributed(Bidirectional(LSTM(m // 2, return_sequences=True))))
+    model.add(TimeDistributed(Bidirectional(LSTM(m // 2, return_sequences=True,
+                                            kernel_regularizer=regularizers.l2(0.0001)))))
     model.add(TimeDistributed(Dropout(0.2)))
     model.add(TimeDistributed(GlobalMaxPooling1D()))
-    model.add(Bidirectional(LSTM(h // 2, return_sequences = True), merge_mode='concat'))
+    model.add(Bidirectional(LSTM(h // 2, return_sequences = True,
+                                 kernel_regularizer=regularizers.l2(0.0001)), merge_mode='concat'))
     model.add(Dropout(0.2))
-    crf = CRF(num_tags, sparse_target=False)
+    crf = CRF(num_tags, sparse_target=False, kernel_regularizer=regularizers.l2(0.0001))
     model.add(crf)
-    model.compile('adam', loss = crf.loss_function,
+    model.compile(optimizer, loss = crf.loss_function,
                   metrics=[crf.accuracy])
-    #TODO: Can we support providing custom loss functions and optimizers like Lee-Dernoncourt model?
+    #TODO: Can we support providing custom loss functions like Lee-Dernoncourt model?
     return model
 
 def learning_rate_scheduler(epoch, lr):
