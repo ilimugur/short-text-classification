@@ -281,7 +281,15 @@ def kadjk(dataset_loading_function, dataset_file_path,
     word_to_index.clear()
 
     if load_model_from_file is not None:
-        save_load_utils.load_all_weights(model, model_filename)
+        print("Doing a dummy training before loading the provided weights:")
+        train_kadjk(model, ([training[0][0]], [training[1][0]]),
+                    ([validation[0][0]], [validation[1][0]]), 1, tag_indices,
+                    max_mini_batch_size, max_conversation_length,
+                    timesteps, num_word_dimensions, num_tags,
+                    end_of_line_word_index, uninterpretable_label_index)
+        print("Finished the dummy training. Now loading weights.")
+        save_load_utils.load_all_weights(model, load_model_from_file)
+        print("Loaded the weights.")
 
     if num_epochs_to_train > 0:
         train_kadjk(model, training, validation, num_epochs_to_train, tag_indices,

@@ -13,8 +13,8 @@ models =     {
              }
 
 embeddings = {
-                'word2vec': read_word2vec,
-                'GloVe': read_glove_twitter
+                'word2vec': read_word2vec, # https://code.google.com/archive/p/word2vec/
+                'GloVe': read_glove_twitter # https://nlp.stanford.edu/projects/glove/
              }
 
 datasets =   {
