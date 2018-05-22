@@ -21,6 +21,11 @@ datasets =   {
                 'SwDA': load_swda_corpus_data
              }
 
+default_parameters =    {
+                            'Lee-Dernoncourt': {'loss':'logcosh' , 'optimizer': 'adadelta'},
+                            'KADJK': {'loss':'logcosh' , 'optimizer': 'adadelta'}
+                        }
+
 
 def print_options(option_dict):
     for key in option_dict.keys():
@@ -73,36 +78,40 @@ if __name__ == "__main__":
         print('Datasets available:')
         print_options(datasets)
     else:
-        if args.loss_function and args.optimizer and\
-           args.model and args.embedding and args.dataset and\
+        if args.model and args.embedding and args.dataset and\
            models[args.model] and embeddings[args.embedding[0]] and datasets[args.dataset[0]]:
-            loss_valid = check_keras_option_validity(args.loss_function,
-                                                     inspect.getmembers(losses, inspect.isfunction))
-            optimizer_valid = check_keras_option_validity(args.optimizer,
-                                                          inspect.getmembers(optimizers, inspect.isclass))
-            if loss_valid and optimizer_valid:
-                loss_function = args.loss_function
-                optimizer = args.optimizer
-                model = models[args.model]
-                embedding_loading_function = embeddings[args.embedding[0]]
-                embedding_file_path = args.embedding[1]
-                dataset_loading_function = datasets[args.dataset[0]]
-                dataset_file_path = args.dataset[1]
-                load_from_model_file = args.load_model
-                save_model = args.save_model
+            model = models[args.model]
+            embedding_loading_function = embeddings[args.embedding[0]]
+            embedding_file_path = args.embedding[1]
+            dataset_loading_function = datasets[args.dataset[0]]
+            dataset_file_path = args.dataset[1]
+            parameters = default_parameters[args.model]
+            load_from_model_file = args.load_model
+            save_model = args.save_model
+            num_epochs_to_train = 0
 
-                if args.train:
-                    num_epochs_to_train = args.train[0]
-                else:
-                    num_epochs_to_train = 0
+            if args.loss_function:
+                loss_valid = check_keras_option_validity(args.loss_function,
+                                                         inspect.getmembers(losses, inspect.isfunction))
+                if loss_valid:
+                    parameters['loss'] = args.loss_function
 
-                model_filename = args.model + '_' + args.embedding[0] + '_' +\
-                                 args.dataset[0] + '_' + args.loss_function + '_' +\
-                                 args.optimizer + '_' + str(num_epochs_to_train) + '.h5'
+            if args.optimizer:
+                optimizer_valid = check_keras_option_validity(args.optimizer,
+                                                              inspect.getmembers(optimizers, inspect.isclass))
+                if optimizer_valid:
+                    parameters['optimizer'] = args.optimizer
 
-                model(dataset_loading_function, dataset_file_path,
-                      embedding_loading_function, embedding_file_path,
-                      num_epochs_to_train, loss_function, optimizer,
-                      load_from_model_file, save_model, model_filename)
+            if args.train:
+                num_epochs_to_train = args.train[0]
+
+            model_filename = args.model + '_' + args.embedding[0] + '_' +\
+                             args.dataset[0] + '_' + parameters['loss'] + '_' +\
+                             parameters['optimizer'] + '_' + str(num_epochs_to_train) + '.h5'
+
+            model(dataset_loading_function, dataset_file_path,
+                  embedding_loading_function, embedding_file_path,
+                  num_epochs_to_train, parameters['loss'], parameters['optimizer'],
+                  load_from_model_file, save_model, model_filename)
         else:
             print("Please enter all required argument. Use --help to review required arguments.")
