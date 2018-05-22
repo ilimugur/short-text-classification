@@ -129,14 +129,6 @@ def prepare_kadjk_model(max_mini_batch_size,
     for word, index in word_to_index.items():
         embedding_weights[index, :] = word_vec_dict[word]
 
-    f = open('error.log', 'w')
-    for i in range(dictionary_size):
-        s = ''
-        for j in range(num_word_dimensions):
-            s += str(embedding_weights[i][j]) + " "
-        f.write(s + '\n')
-    f.close()
-
     # define inputs here
     embedding_layer = Embedding(dictionary_size, num_word_dimensions,
                                 weights=[embedding_weights], mask_zero=True,
