@@ -205,7 +205,7 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
 def kadjk(dataset_loading_function, dataset_file_path,
                     embedding_loading_function, embedding_file_path,
                     num_epochs_to_train,
-                    loss_function, optimizer, load_model_from_file, save_model, model_filename):
+                    loss_function, optimizer, load_model_from_file, save_to_model_file):
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
 
     found_words_list = []
@@ -296,7 +296,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
 
     print("Accuracy: " + str(score * 100) + "%")
 
-    if save_model:
-        save_load_utils.save_all_weights(model, model_filename)
+    if save_to_model_file:
+        save_load_utils.save_all_weights(model, save_to_model_file)
     return model
 

@@ -108,7 +108,7 @@ def evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num
 def lee_dernoncourt(dataset_loading_function, dataset_file_path,
                     embedding_loading_function, embedding_file_path,
                     num_epochs_to_train, loss_function, optimizer,
-                    load_from_model_file, save_model, model_filename):
+                    load_from_model_file, save_to_model_file):
     data, dimensions = prepare_data(dataset_loading_function, dataset_file_path,
                                     embedding_loading_function, embedding_file_path)
     vectorized_talks, talk_names, tag_indices = data
@@ -131,8 +131,8 @@ def lee_dernoncourt(dataset_loading_function, dataset_file_path,
     score = evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num_tags)
     print("Accuracy: " + str(score * 100) + "%")
 
-    if save_model:
-        model.save(model_filename)
+    if save_to_model_file:
+        model.save(save_to_model_file)
 
     return model
 
