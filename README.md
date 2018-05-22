@@ -48,8 +48,6 @@ Finally, to train a specific model by specifying a dataset, an embedding, a loss
 foo@bar:~$ python core.py --model Lee-Dernoncourt
                           --dataset SwDA <path_to_SwDA_dataset_directory>
                           --embedding GloVe <path_to_GloVe_embedding_file>
-                          --loss-function logcosh
-                          --optimizer adadelta
 ```
 
 For a more detailed description of the capabilities of the tool, use `--help` option.
