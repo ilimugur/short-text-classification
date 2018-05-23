@@ -118,8 +118,8 @@ def lee_dernoncourt(dataset_loading_function, dataset_file_path,
     vectorized_talks.clear()
     talk_names.clear()
 
-    if load_model_from_file:
-        model = load_model(load_model_from_file)
+    if load_from_model_file:
+        model = load_model(load_from_model_file)
     else:
         model = prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
                                               loss_function, optimizer)

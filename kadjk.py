@@ -205,7 +205,7 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
 def kadjk(dataset_loading_function, dataset_file_path,
                     embedding_loading_function, embedding_file_path,
                     num_epochs_to_train,
-                    loss_function, optimizer, load_model_from_file, save_to_model_file):
+                    loss_function, optimizer, load_from_model_file, save_to_model_file):
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
 
     found_words_list = []
@@ -272,7 +272,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
     word_vec_dict.clear()
     word_to_index.clear()
 
-    if load_model_from_file is not None:
+    if load_from_model_file is not None:
         print("Doing a dummy training before loading the provided weights:")
         train_kadjk(model, ([training[0][0]], [training[1][0]]),
                     ([validation[0][0]], [validation[1][0]]), 1, tag_indices,
@@ -280,7 +280,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
                     timesteps, num_word_dimensions, num_tags,
                     end_of_line_word_index, uninterpretable_label_index)
         print("Finished the dummy training. Now loading weights.")
-        save_load_utils.load_all_weights(model, load_model_from_file)
+        save_load_utils.load_all_weights(model, load_from_model_file)
         print("Loaded the weights.")
 
     if num_epochs_to_train > 0:

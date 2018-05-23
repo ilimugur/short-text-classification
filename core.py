@@ -51,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument('--embedding', nargs=2, metavar=('TYPE', 'PATH'), type=str, help='Embedding to use.')
     parser.add_argument('--loss-function', type=str, help='Loss function to use.')
     parser.add_argument('--optimizer', type=str, help='Optimizer to use.')
-    parser.add_argument('--save-model', type=str, metavar=('SAVE_FILE_PATH'), help='Save model once training is complete.')
+    parser.add_argument('--save-model', type=str, metavar=('SAVE_FILE_PATH'), help='Save model to a .h5 file once training is complete.')
     parser.add_argument('--load-model', type=str, help='Load pretrained model from a .h5 file and print its accuracy.')
 
     parser.add_argument('--train', nargs=1, metavar=('NUM_EPOCHS'), type=int, help='Train the specified network for given number of epochs.')
@@ -104,10 +104,6 @@ if __name__ == "__main__":
 
             if args.train:
                 num_epochs_to_train = args.train[0]
-
-            model_filename = args.model + '_' + args.embedding[0] + '_' +\
-                             args.dataset[0] + '_' + parameters['loss'] + '_' +\
-                             parameters['optimizer'] + '_' + str(num_epochs_to_train) + '.h5'
 
             model(dataset_loading_function, dataset_file_path,
                   embedding_loading_function, embedding_file_path,
