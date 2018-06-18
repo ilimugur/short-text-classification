@@ -108,7 +108,7 @@ def evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num
 def lee_dernoncourt(dataset_loading_function, dataset_file_path,
                     embedding_loading_function, embedding_file_path,
                     num_epochs_to_train, loss_function, optimizer,
-                    load_from_model_file, save_to_model_file):
+                    shuffle_words, load_from_model_file, save_to_model_file):
     data, dimensions = prepare_data(dataset_loading_function, dataset_file_path,
                                     embedding_loading_function, embedding_file_path)
     vectorized_talks, talk_names, tag_indices = data
@@ -117,6 +117,11 @@ def lee_dernoncourt(dataset_loading_function, dataset_file_path,
                                                       timesteps, num_word_dimensions)
     vectorized_talks.clear()
     talk_names.clear()
+
+    if shuffle_words:
+        for talk in training[0]:
+            for utterance in talk:
+                random.shuffle(utterance)
 
     if load_from_model_file:
         model = load_model(load_from_model_file)

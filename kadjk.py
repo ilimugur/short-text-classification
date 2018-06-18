@@ -203,9 +203,9 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
     return score[1]
 
 def kadjk(dataset_loading_function, dataset_file_path,
-                    embedding_loading_function, embedding_file_path,
-                    num_epochs_to_train,
-                    loss_function, optimizer, load_from_model_file, save_to_model_file):
+          embedding_loading_function, embedding_file_path,
+          num_epochs_to_train, loss_function, optimizer,
+          shuffle_words, load_from_model_file, save_to_model_file):
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
 
     found_words_list = []
@@ -249,6 +249,11 @@ def kadjk(dataset_loading_function, dataset_file_path,
 
     training, validation, testing = form_datasets(talks, talk_names, timesteps, num_word_dimensions)
     talk_names.clear()
+
+    if shuffle_words:
+        for talk in training[0]:
+            for utterance in talk:
+                random.shuffle(utterance)
 
     for i in range(len(training)):
         if len(training[0][i]) != len(training[1][i]):
