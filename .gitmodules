@@ -1,3 +1,6 @@
 [submodule "swda"]
 	path = swda
 	url = https://github.com/cgpotts/swda.git
+[submodule "fastText_multilingual"]
+	path = fastText_multilingual
+	url = https://github.com/ilimugur/fastText_multilingual
