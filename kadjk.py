@@ -242,8 +242,11 @@ def kadjk(dataset_loading_function, dataset_file_path,
     words_covered = 0
     total_words = len(word_vec_dict)
     for word in word_vec_dict:
-        word_vec_dict[word] = target_dictionary.translate_inverted_softmax(source_dictionary[word], source_dictionary, 1500, recalculate=False)
-#        target_word = target_dictionary.translate_nearest_neighbor(source_dictionary[word])
+        try:
+            word_vec_dict[word] = target_dictionary.translate_inverted_softmax(source_dictionary[word], source_dictionary, 1500, recalculate=False)
+    #        target_word = target_dictionary.translate_nearest_neighbor(source_dictionary[word])
+        except KeyError as e:
+            pass
         words_covered += 1
         if words_covered % 100 == 0:
             print("\t- Translated %d out of %d." % (words_covered, total_words))
@@ -256,11 +259,9 @@ def kadjk(dataset_loading_function, dataset_file_path,
 
     target_dictionary = FastVector(vector_file=target_lang_embedding_file)
     for word in word_vec_dict:
-        try:
+        if type(word) == str:
             word_vec_dict[word] = target_dictionary[ word_vec_dict[word] ]
             num_word_dimensions = len(word_vec_dict[word])
-        except KeyError as e:
-            pass
 
     del target_dictionary
 
