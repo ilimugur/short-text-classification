@@ -27,6 +27,25 @@ def read_word2vec(file_name):
     print('Read word2vec data.')
     return (num_words, num_dimensions, word_2_vec)
 
+def read_fasttext_embedding(embedding_file):
+    print('Reading FastText embedding...')
+    word_2_vec = {}
+
+    with open(embedding_file, 'r') as f:
+        (num_words, num_dimensions) = \
+            (int(x) for x in f.readline().rstrip('\n').split(' '))
+        for line in f:
+            elems = line.rstrip('\n').split(' ')
+            try:
+                tmp_list = [float(dim_val) for dim_val in elems[1: num_dimensions + 1]]
+            except:
+                print(elems)
+                raise
+            word_2_vec[ elems[0] ] = numpy.array(tmp_list)
+
+    print('Read FastText embedding.')
+    return (num_words, num_dimensions, word_2_vec)
+
 def read_glove_twitter(file_name):
     print('Reading GloVe Twitter data...')
     f = open(file_name, 'r')

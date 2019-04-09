@@ -11,9 +11,11 @@ from keras_contrib.layers import CRF
 from keras_contrib.utils import save_load_utils
 from keras.utils import to_categorical
 from train_set_preferences import valid_set_idx, test_set_idx
-from helpers import prepare_data
+from translate import read_translated_swda_corpus_data
 from helpers import arrange_word_to_vec_dict, form_word_to_index_dict_from_dataset
 from helpers import find_max_utterance_length, find_longest_conversation_length
+
+from fastText_multilingual.fasttext import FastVector
 
 def form_datasets(talks, talk_names, max_sentence_length, word_dimensions):
     print('Forming dataset appropriately...')
@@ -200,42 +202,78 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
                                                            end_of_line_word_index,
                                                            uninterpretable_label_index),
                                      steps = num_testing_steps)
+    print("len(score):" + str(len(score)))
+    print("score:" + str(score))
     return score[1]
 
 def kadjk(dataset_loading_function, dataset_file_path,
-          embedding_loading_function, embedding_file_path,
+          embedding_loading_function, 
+          source_lang, source_lang_embedding_file,
+          target_lang, target_lang_embedding_file,
+          target_test_data_path,
           num_epochs_to_train, loss_function, optimizer,
           shuffle_words, load_from_model_file, save_to_model_file):
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
 
-    found_words_list = []
-    found_words_set = set()
-    words_set = set()
-    num_total_words = 0
+    word_vec_dict = {}
     for c in talks_read:
         for u in c[0]:
             for i in range(len(u)):
                 w = u[i]
-                num_total_words += 1
-                words_set.add(w)
                 if w.rstrip(',') != w or w.rstrip('.') != w or w.rstrip('?') != w or w.rstrip('!') != w:
-                    found_words_list.append(w)
-                    found_words_set.add(w)
                     u[i] = w.rstrip(',').rstrip('.').rstrip('?').rstrip('!')
-#    print("Number of word occurances found which should be modified:" + str(len(found_words_list)))
-#    print("Number of different words found to be modified:" + str(len(found_words_set)))
-#    print("Number of total word occurances found:" + str(num_total_words))
-#    print("Number of total words found:" + str(len(words_set)))
+                word_vec_dict[u[i].lower()] = True
 
-    num_words, num_word_dimensions, word_vec_dict = embedding_loading_function(embedding_file_path)
+    # Reconsider after decoupling the training and test data
+    read_translated_swda_corpus_data(talks_read, talk_names, target_test_data_path, target_lang)
+
+    source_dictionary = FastVector(vector_file=source_lang_embedding_file)
+    print("Source monolingual language data loaded successfully.")
+    target_dictionary = FastVector(vector_file=target_lang_embedding_file)
+    print("Target  monolingual language data loaded successfully.")
+    transformation_matrix_path='fastText_multilingual/alignment_matrices/%s.txt'
+    source_transform_matrix_file = transformation_matrix_path % source_lang
+    target_transform_matrix_file = transformation_matrix_path % target_lang
+    source_dictionary.apply_transform(source_transform_matrix_file)
+    print("Transformation data applied to source language.")
+    target_dictionary.apply_transform(target_transform_matrix_file)
+    print("Transformation data applied to target language.")
+    print("Translating words seen in dataset:")
+    words_covered = 0
+    total_words = len(word_vec_dict)
+    for word in word_vec_dict:
+        word_vec_dict[word] = target_dictionary.translate_inverted_softmax(source_dictionary[word], source_dictionary, 1500, recalculate=False)
+#        target_word = target_dictionary.translate_nearest_neighbor(source_dictionary[word])
+        words_covered += 1
+        if words_covered % 100 == 0:
+            print("\t- Translated %d out of %d." % (words_covered, total_words))
+    print("Translation complete.")
+
+    del source_dictionary
+    del target_dictionary
+
+    print("Source and target dictionaries are deleted.")
+
+    target_dictionary = FastVector(vector_file=target_lang_embedding_file)
+    for word in word_vec_dict:
+        try:
+            word_vec_dict[word] = target_dictionary[ word_vec_dict[word] ]
+            num_word_dimensions = len(word_vec_dict[word])
+        except KeyError as e:
+            pass
+
+    del target_dictionary
+
+    print("Vector counterparts are placed.")
 
     timesteps = find_max_utterance_length(talks_read)
     max_conversation_length = find_longest_conversation_length(talks_read)
     num_tags = len(tag_indices.keys())
 
-
     arrange_word_to_vec_dict(talks_read, word_vec_dict, num_word_dimensions)
     word_to_index = form_word_to_index_dict_from_dataset(word_vec_dict)
+
+    print("Dataset arranged.")
 
     end_of_line_word = '<unk>'
     end_of_line_word_index = len(word_to_index) + 1
@@ -250,6 +288,8 @@ def kadjk(dataset_loading_function, dataset_file_path,
     training, validation, testing = form_datasets(talks, talk_names, timesteps, num_word_dimensions)
     talk_names.clear()
 
+    print("Training, validation and tesing datasets are formed.")
+
     if shuffle_words:
         for talk in training[0]:
             for utterance in talk:
@@ -260,6 +300,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
             print("Found it: " + str(i))
             return
 
+    print("BEGINNING THE TRAINING...")
     max_mini_batch_size = 64
     model = prepare_kadjk_model(max_mini_batch_size, max_conversation_length,
                                 timesteps, num_word_dimensions, word_to_index, word_vec_dict,
@@ -294,10 +335,10 @@ def kadjk(dataset_loading_function, dataset_file_path,
                     timesteps, num_word_dimensions, num_tags,
                     end_of_line_word_index, uninterpretable_label_index)
 
-    score = evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size,
-                           max_conversation_length, timesteps,
-                           num_word_dimensions, num_tags,
-                           end_of_line_word_index, uninterpretable_label_index)
+#    score = evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size,
+#                           max_conversation_length, timesteps,
+#                           num_word_dimensions, num_tags,
+#                           end_of_line_word_index, uninterpretable_label_index)
 
     print("Accuracy: " + str(score * 100) + "%")
 
