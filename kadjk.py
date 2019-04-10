@@ -17,7 +17,7 @@ from helpers import find_max_utterance_length, find_longest_conversation_length
 
 from fastText_multilingual.fasttext import FastVector
 
-def form_datasets(talks, talk_names, max_sentence_length, word_dimensions):
+def form_datasets(talks, talk_names):
     print('Forming dataset appropriately...')
     
     x_train_list = []
@@ -286,7 +286,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
     talks = [([[word_to_index[w.lower()] for w in u] for u in c[0]], c[1]) for c in talks_read]
     talks_read.clear()
 
-    training, validation, testing = form_datasets(talks, talk_names, timesteps, num_word_dimensions)
+    training, validation, testing = form_datasets(talks, talk_names)
     talk_names.clear()
 
     print("Training, validation and tesing datasets are formed.")
