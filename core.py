@@ -7,6 +7,7 @@ from kadjk import kadjk
 from embedding import read_word2vec, read_glove_twitter, read_fasttext_embedding
 from dataset import load_swda_corpus_data
 from translate import translate_and_store_swda_corpus_test_data
+from helpers import read_word_translation_list_from_file, read_word_list_from_file
 
 models =     {
 #                'Lee-Dernoncourt': lee_dernoncourt,
@@ -59,6 +60,12 @@ if __name__ == "__main__":
 
     parser.add_argument('--model', type=str, help='Model to use.')
     parser.add_argument('--dataset', nargs=2, metavar=('TYPE', 'PATH'), type=str, help='Dataset to use.')
+    parser.add_argument('--feed-words-to-translate', nargs=1, metavar=('PATH'), type=str, help='Feed a list of words in the dataset. (used as a checkpoint to not find out the words to translate each time)')
+    parser.add_argument('--store-words-to-translate', nargs=1, metavar=('PATH'), type=str, help='Store a list of words in the dataset. (used as a checkpoint to not find out the words to translate each time)')
+
+    parser.add_argument('--feed-translated-words', nargs=1, metavar=('PATH'), type=str, help='Feed a list of translated words in the dataset. (used as a checkpoint to not find out the words to translate each time)')
+    parser.add_argument('--store-translated-words', nargs=1, metavar=('PATH'), type=str, help='Store a list of translated words in the dataset. (used as a checkpoint to not find out the words to translate each time)')
+
     parser.add_argument('--source-language', nargs=2, metavar=('LANG', 'PATH'), type=str, help='Source language, and the path to the relevant monolingual embedding file.')
     parser.add_argument('--target-language', nargs=2, metavar=('LANG', 'PATH'), type=str, help='Target language, and the path to the relevant monolingual embedding file.')
     parser.add_argument('--target-testing-data', nargs=1, metavar=('LANG'), type=str, help='Source language.')
@@ -156,10 +163,29 @@ if __name__ == "__main__":
 
             shuffle_words = args.shuffle_words
 
+            word_translation_list = None
+            translation_list_file = None
+            if args.feed_words_to_translate:
+                word_translation_list = read_word_list_from_file(args.feed_words_to_translate[0])
+            if args.store_words_to_translate:
+                translation_list_file = args.store_words_to_translate[0]
+                
+            translated_word_list = None
+            translated_list_file = None
+            if args.feed_translated_words:
+                translated_word_list = read_word_translation_list_from_file(args.feed_translated_words[0])
+            if args.store_translated_words:
+                translated_list_file = args.store_translated_words[0]
+                
+
             model(dataset_loading_function, dataset_file_path,
                   embedding_loading_function,
                   source_lang, source_lang_embedding_file,
                   target_lang, target_lang_embedding_file,
+                  translation_list_file,
+                  word_translation_list,
+                  translated_list_file,
+                  translated_word_list,
                   target_test_data_path,
                   num_epochs_to_train, parameters['loss'], parameters['optimizer'],
                   shuffle_words, load_from_model_file, save_model_to_file)

@@ -1,4 +1,5 @@
 import numpy
+from train_set_preferences import valid_set_idx, test_set_idx
 
 def prune_swda_corpus_data(talks):
     print('Pruning SwDA Corpus data...\n')
@@ -211,8 +212,8 @@ def vectorize_talks(talks, word_vec_dict, num_word_dimensions):
 def find_longest_conversation_length(talks):
     max_conversation_length = 0
     for talk in talks:
-        if max_conversation_length < len(talk[0]):
-            max_conversation_length = len(talk[0])
+        if max_conversation_length < len(talk[1]):
+            max_conversation_length = len(talk[1])
 
     print('Found max_conversation_length:' + str(max_conversation_length))
     return max_conversation_length
@@ -227,18 +228,20 @@ def find_max_utterance_length(talks):
     print('Found max_utterance_length:' + str(max_utterance_length))
     return max_utterance_length
 
-def arrange_word_to_vec_dict(talks, word_vec_dict, num_word_dimensions):
+def arrange_word_to_vec_dict(talks, talk_names, source_lang, target_lang,
+                             word_vec_dict, num_word_dimensions):
     seen_words = set()
-    # From a set of seen words
-    for talk in talks:
+    # Form a set of seen words
+    for k, talk in enumerate(talks):
         for utterance in talk[0]:
             for word in utterance:
                 lowercase_word = word.lower()
-                seen_words.add(lowercase_word)
+                prefix = target_lang if (talk_names[k] in test_set_idx) else source_lang
+                seen_words.add(prefix + lowercase_word)
 
     # Remove words that are not in the dataset
     to_be_deleted = []
-    for word in word_vec_dict.keys():
+    for word in word_vec_dict:
         if word not in seen_words:
             to_be_deleted.append(word)
 
@@ -258,11 +261,13 @@ def form_word_to_index_dict_from_dataset(word_vec_dict):
         next_index_to_assign += 1
     return word_to_index
 
-def prepare_data(dataset_loading_function, dataset_file_path,
+def prepare_data(dataset_loading_function, dataset_file_path, language, translation_path,
                  embedding_loading_function, embedding_file_path):
     # Read dataset
     read_talks, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
     num_tags = len(tag_indices.keys())
+
+    talks_read, talk_names = read_translated_swda_corpus_data(talks_read, talk_names, translation_path, language)
 
     #Prune word data
     talks = prune_swda_corpus_data(read_talks)
@@ -282,3 +287,41 @@ def prepare_data(dataset_loading_function, dataset_file_path,
     return (vectorized_talks, talk_names, tag_indices), (max_conversation_len, max_utterance_len,
                                                          num_word_dimensions, num_tags)
 
+# Does this support reading/writing unicode characters?
+def read_word_list_from_file(file_path):
+    word_list = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            word_list.append(line.rstrip())
+    return word_list
+
+def write_word_list_to_file(file_path, word_list):
+    with open(file_path, 'w') as f:
+        for word in word_list:
+            f.write('%s\n' % word)
+
+# Does this support reading/writing unicode characters?
+def read_word_translation_list_from_file(file_path):
+    word_translation_list = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            word_translation_list.append(tuple(line.rstrip().split()))
+    return word_translation_list
+
+def write_word_translation_list_to_file(file_path, word_list):
+    with open(file_path, 'w') as f:
+        for word_pair in word_list:
+            try:
+                f.write('%s %s\n' % word_pair)
+            except:
+                print("len:%d - str:%s" %(len(word_pair), str(word_pair)))
+
+def pad_dataset_to_equal_length(dataset):
+    longest_utterance = 0
+    for talk in dataset[0]:
+        for utterance in talk:
+            longest_utterance = max(longest_utterance, len(utterance))
+
+    for talk in dataset[0]:
+        for utterance in talk:
+            utterance += [0] * (longest_utterance - len(utterance))
