@@ -398,10 +398,10 @@ def kadjk(dataset_loading_function, dataset_file_path,
                     timesteps, num_word_dimensions, num_tags,
                     end_of_line_word_index, uninterpretable_label_index)
 
-#    score = evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size,
-#                           max_conversation_length, timesteps,
-#                           num_word_dimensions, num_tags,
-#                           end_of_line_word_index, uninterpretable_label_index)
+    score = evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size,
+                           max_conversation_length, timesteps,
+                           num_word_dimensions, num_tags,
+                           end_of_line_word_index, uninterpretable_label_index)
 
     print("Accuracy: " + str(score * 100) + "%")
 
