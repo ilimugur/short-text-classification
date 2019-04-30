@@ -235,9 +235,7 @@ def arrange_word_to_vec_dict(talks, talk_names, source_lang, target_lang,
     for k, talk in enumerate(talks):
         for utterance in talk[0]:
             for word in utterance:
-                lowercase_word = word.lower()
-                prefix = target_lang if (talk_names[k] in test_set_idx) else source_lang
-                seen_words.add(prefix + lowercase_word)
+                seen_words.add(word.lower())
 
     # Remove words that are not in the dataset
     to_be_deleted = []
@@ -247,6 +245,8 @@ def arrange_word_to_vec_dict(talks, talk_names, source_lang, target_lang,
 
     for word in to_be_deleted:
         del word_vec_dict[word]
+
+    print("found %d unnecessary words in word_vec_dict." % len(to_be_deleted))
 
     # Add random vectors for words that are not seen in the embedding
     for word in seen_words:
@@ -288,33 +288,46 @@ def prepare_data(dataset_loading_function, dataset_file_path, language, translat
                                                          num_word_dimensions, num_tags)
 
 # Does this support reading/writing unicode characters?
-def read_word_list_from_file(file_path):
-    word_list = []
+def read_word_set_from_file(file_path):
+    word_set = set()
     with open(file_path, 'r') as f:
         for line in f:
-            word_list.append(line.rstrip())
-    return word_list
+            word_set.add(line.rstrip())
+    return word_set
 
-def write_word_list_to_file(file_path, word_list):
+def write_word_set_to_file(file_path, word_set):
     with open(file_path, 'w') as f:
-        for word in word_list:
+        for word in word_set:
             f.write('%s\n' % word)
 
 # Does this support reading/writing unicode characters?
-def read_word_translation_list_from_file(file_path):
-    word_translation_list = []
+def read_word_translation_dict_from_file(file_path):
+    word_translation_dict = {}
+    list_complete = False
     with open(file_path, 'r') as f:
         for line in f:
-            word_translation_list.append(tuple(line.rstrip().split()))
-    return word_translation_list
+            tokens_found = line.rstrip().split()
+            num_tokens = len(tokens_found)
+            if num_tokens == 2:
+                word_translation_dict[tokens_found[0]] = tokens_found[1]
+            elif num_tokens == 1:
+                if len(word_translation_dict) == int(tokens_found[0]):
+                    list_complete = True
+                    break
+                else:
+                    print("ERROR! Contradicting # at the end of translated pair file!")
+                    print( "(%d, %d)" % (len(word_translation_dict), int(tokens_found[0])) )
+            else:
+                print("ERROR! Incorrect # of tokens found: %d - tokens: %s" % (num_tokens,
+                                                                               str(tokens_found)))
+    return list_complete, word_translation_dict
 
-def write_word_translation_list_to_file(file_path, word_list):
+def write_word_translation_dict_to_file(file_path, word_translation_dict, is_finished = False):
     with open(file_path, 'w') as f:
-        for word_pair in word_list:
-            try:
-                f.write('%s %s\n' % word_pair)
-            except:
-                print("len:%d - str:%s" %(len(word_pair), str(word_pair)))
+        for word, translation in word_translation_dict.items():
+            f.write('%s %s\n' % (word, translation))
+        if is_finished:
+            f.write('%d\n' % len(word_translation_dict))
 
 def pad_dataset_to_equal_length(dataset):
     longest_utterance = 0

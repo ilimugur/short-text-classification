@@ -17,7 +17,7 @@ from train_set_preferences import valid_set_idx, test_set_idx
 from translate import read_translated_swda_corpus_data
 from helpers import arrange_word_to_vec_dict, form_word_to_index_dict_from_dataset
 from helpers import find_max_utterance_length, find_longest_conversation_length
-from helpers import write_word_translation_list_to_file, write_word_list_to_file
+from helpers import write_word_translation_dict_to_file, write_word_set_to_file
 from helpers import pad_dataset_to_equal_length
 
 from fastText_multilingual.fasttext import FastVector
@@ -158,9 +158,15 @@ def prepare_kadjk_model(max_mini_batch_size,
     #TODO: Can we support providing custom loss functions like Lee-Dernoncourt model?
     return model
 
+epochs_trained_so_far = 0
+
 def learning_rate_scheduler(epoch, lr):
-    if epoch % 5 == 0:
-        if epoch > 0:
+    e = epoch + epochs_trained_so_far
+    new_lr = 1.0 / (2.0 ** (e // 5))
+    print('XXXXXXXX this epoch:%d\toverall epoch:%d\t, lr:%f' % (epoch, e, new_lr))
+    return new_lr
+    if e % 5 == 0:
+        if e > 0:
             return lr * 0.5
         else:
             return 1.0
@@ -208,60 +214,65 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
                                                            end_of_line_word_index,
                                                            uninterpretable_label_index),
                                      steps = num_testing_steps)
-    print("len(score):" + str(len(score)))
-    print("score:" + str(score))
     return score[1]
 
 def kadjk(dataset_loading_function, dataset_file_path,
           embedding_loading_function, 
           source_lang, source_lang_embedding_file,
           target_lang, target_lang_embedding_file,
-          translation_list_file,
-          word_translation_list,
-          translated_list_file,
-          translated_word_list,
+          translation_set_file,
+          word_translation_set,
+          translated_pairs_file,
+          translated_word_dict,
+          translation_complete,
           target_test_data_path,
           num_epochs_to_train, loss_function, optimizer,
-          shuffle_words, load_from_model_file, save_to_model_file):
+          shuffle_words, load_from_model_file, previous_training_epochs,
+          save_to_model_file):
+    global epochs_trained_so_far
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
     read_translated_swda_corpus_data(talks_read, talk_names, target_test_data_path, target_lang)
 
     max_utterance = 0
     num_utterances = 0
-    if word_translation_list is None:
-        word_vec_dict = {}
-        for k, c in enumerate(talks_read):
-            num_utterances += len(c[0])
-            for u in c[0]:
-                max_utterance = max(max_utterance, len(u))
-                for i in range(len(u)):
-                    w = u[i]
-                    if w.rstrip(',') != w or w.rstrip('.') != w or w.rstrip('?') != w or w.rstrip('!') != w:
-                        u[i] = w.rstrip(',').rstrip('.').rstrip('?').rstrip('!')
-                    prefix = target_lang if (talk_names[k] in test_set_idx) else source_lang
-                    word_vec_dict[prefix + u[i].lower()] = True
-        if translation_list_file is not None:
-            write_word_list_to_file(translation_list_file, list( word_vec_dict.keys() ))
-    else:
-        word_vec_dict = {word:True for word in word_translation_list}
+    for k, c in enumerate(talks_read):
+        num_utterances += len(c[0])
+        for u in c[0]:
+            max_utterance = max(max_utterance, len(u))
+            for i, word in enumerate(u):
+                u[i] = word.rstrip(',').rstrip('.').rstrip('?').rstrip('!')
 
-    words_translated = []
-    if translated_word_list is not None:
-        words_translated = translated_word_list
-        for translation_pair in words_translated:
-            if len(translation_pair) != 2:
-                print("Problem!")
-                print("len:%d - str:%s" %(len(translation_pair), str(translation_pair)))
-                return
-            if translation_pair[0] not in word_vec_dict:
-                print("WARNING! Word dictionary and translated word file seem to be irrelevant!")
-            word_vec_dict[ translation_pair[0] ] = translation_pair[1]
-    total_words = len(word_vec_dict)
+    if word_translation_set is None:
+        src_word_set = set()
+        for k, c in enumerate(talks_read):
+            for u in c[0]:
+                for word in u:
+                    if talk_names[k] not in test_set_idx:
+                        src_word_set.append(word.lower())
+        if translation_set_file is not None:
+            write_word_set_to_file(translation_set_file, src_word_set)
+    else:
+        src_word_set = word_translation_set
+
+    total_words = len(src_word_set)
+    total_translated_words = len(translated_word_dict)
+    total_not_found_words = 0
+
+    if translated_word_dict is not None:
+        for word in src_word_set:
+            if word not in translated_word_dict:
+                total_not_found_words += 1
+    else:
+        translated_word_dict = {}
+
+    print("Found %d translated word pairs." % total_translated_words)
+
+    total_translated_word = len(translated_word_dict)
     
     target_dictionary = FastVector(vector_file=target_lang_embedding_file)
     print("Target  monolingual language data loaded successfully.")
 
-    if len(words_translated) < total_words:
+    if not translation_complete:
         source_dictionary = FastVector(vector_file=source_lang_embedding_file)
         print("Source monolingual language data loaded successfully.")
         transformation_matrix_path='fastText_multilingual/alignment_matrices/%s.txt'
@@ -275,52 +286,103 @@ def kadjk(dataset_loading_function, dataset_file_path,
 
         try:
             words_seen = 0
-            for w, val in word_vec_dict.items():
-                if type(val) == bool and w[:len(source_lang)] == source_lang:
-                    word = w[len(source_lang):]
-                    try:
-                        translation = target_dictionary.translate_inverted_softmax(source_dictionary[word],
-                                                                                   source_dictionary, 1500,
-                                                                                   recalculate=False)
-        #                translation = target_dictionary.translate_nearest_neighbor(source_dictionary[word])
-                        word_vec_dict[w] = translation
-                        words_translated.append((w, translation))
-                    except KeyError as e:
-                        pass
+            for word in src_word_set:
+                try:
+                    translation = target_dictionary.translate_inverted_softmax(source_dictionary[word],
+                                                                               source_dictionary, 1500,
+                                                                               recalculate=False)
+    #                translation = target_dictionary.translate_nearest_neighbor(source_dictionary[word])
+                    translated_word_dict[w] = translation
+                    total_translated_words += 1
+                except KeyError as e:
+                    pass
                 words_seen += 1
                 if words_seen % 100 == 0:
                     print("\t- Translated %d out of %d." % (words_seen, total_words))
         except KeyboardInterrupt as e:
-            if translated_list_file is not None:
-                write_word_translation_list_to_file(translated_list_file, words_translated)
+            if translated_pairs_file is not None:
+                write_word_translation_dict_to_file(translated_pairs_file, translated_word_dict)
             sys.exit(0)
-        print("Translation complete.")
+        print("Word translation complete.")
 
         del source_dictionary
         del target_dictionary
 
-        if translated_list_file is not None:
-            write_word_translation_list_to_file(translated_list_file, words_translated)
+        if translated_pairs_file is not None:
+            write_word_translation_dict_to_file(translated_pairs_file, translated_word_dict, True)
 
         print("Source and target dictionaries are deleted.")
 
         target_dictionary = FastVector(vector_file=target_lang_embedding_file)
 
-    for k, w in enumerate(word_vec_dict):
-        if type( word_vec_dict[w] ) == str:
-            if w[:len(source_lang)] == source_lang:
-                word = w[len(source_lang):]
-                try:
-                    word_vec_dict[w] = target_dictionary[ word_vec_dict[w] ]
-                except KeyError as e:
-                    print("Key error occured!")
-                    print('"%s" - "%s" - "%s"' % (w, word, word_vec_dict[w]))
-                    pass
-                num_word_dimensions = len(word_vec_dict[w])
+    target_word_set = set()
+    for k, c in enumerate(talks_read):
+        if talk_names[k] in test_set_idx:
+            for u in c[0]:
+                for word in u:
+                    target_word_set.add(word.lower())
+
+    word_vec_dict = {}
+
+    succeeded_to_find_in_src_list = 0
+    failed_to_find_in_src_list = 0
+    for word in src_word_set:
+        try:
+            translation = translated_word_dict[word]
+            word_vec_dict[translation] = target_dictionary[ translation ]
+            succeeded_to_find_in_src_list += 1
+            num_word_dimensions = len(word_vec_dict[translation])
+        except KeyError as e:
+#            print("Key error occured: %s" % word)
+            failed_to_find_in_src_list += 1
+    assert(len(word_vec_dict) > 0) # Makes sure num_word_dimensions is assigned a value
+
+    print("# src: %d - %d" % (succeeded_to_find_in_src_list, failed_to_find_in_src_list))
+    print("source list size: %d" % len(src_word_set))
+    print("word_vec_dict size: %d" % len(word_vec_dict))
+
+    succeeded_to_find_in_target_list = 0
+    failed_to_find_in_target_list = 0
+    for word in target_word_set:
+        try:
+            word_vec_dict[word] = target_dictionary[ word ]
+            succeeded_to_find_in_target_list += 1
+        except KeyError as e:
+#                print("Key error occured: %s" % word)
+            failed_to_find_in_target_list += 1
+            pass
+
+    print("# target: %d - %d" % (succeeded_to_find_in_target_list, failed_to_find_in_target_list))
+    print("target list size: %d" % len(target_word_set))
+    print("word_vec_dict size: %d" % len(word_vec_dict))
+
+    total_set = set()
+    for word in src_word_set:
+        total_set.add(word)
+    for word in target_word_set:
+        total_set.add(word)
+    print("total words encountered: %d" % len(total_set))
 
     del target_dictionary
+    del target_word_set
+    del src_word_set
 
-    print("Vector counterparts are placed.")
+    print("Formed word dictionary with target language vectors.")
+
+    # TODO: How to deal with unseen words for which there is no corresponding word in target space?
+    # Can't just keep them; if there is a word in target space with the same spelling, its vector
+    # will be inflicted on that
+    for k, c in enumerate(talks_read):
+        if talk_names[k] not in test_set_idx:
+            for u in c[0]:
+                for i, word in enumerate(u):
+                    word_lowercase = word.lower()
+                    if word_lowercase in translated_word_dict:
+                        u[i] = translated_word_dict[word_lowercase]
+
+    del translated_word_dict
+
+    print("Translated conversation dataset.")
 
     arrange_word_to_vec_dict(talks_read, talk_names, source_lang, target_lang, word_vec_dict, num_word_dimensions)
     word_to_index = form_word_to_index_dict_from_dataset(word_vec_dict)
@@ -334,7 +396,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
 
     uninterpretable_label_index = tag_indices['%']
 
-    talks = [([[word_to_index[(target_lang if (talk_names[k] in test_set_idx) else source_lang) + w.lower()] for w in u] for u in c[0]], c[1]) for k, c in enumerate(talks_read)]
+    talks = [([[word_to_index[w.lower()] for w in u] for u in c[0]], c[1]) for k, c in enumerate(talks_read)]
     talks_read.clear()
 
     timesteps = find_max_utterance_length(talks)
@@ -380,8 +442,10 @@ def kadjk(dataset_loading_function, dataset_file_path,
     word_vec_dict.clear()
     word_to_index.clear()
 
+    print("Previous training epochs:%d", previous_training_epochs)
     if load_from_model_file is not None:
         print("Doing a dummy training before loading the provided weights:")
+        epochs_trained_so_far = previous_training_epochs
         train_kadjk(model, ([training[0][0]], [training[1][0]]),
                     ([validation[0][0]], [validation[1][0]]), 1, tag_indices,
                     max_mini_batch_size, max_conversation_length,
@@ -392,6 +456,8 @@ def kadjk(dataset_loading_function, dataset_file_path,
         print("Loaded the weights.")
 
     print("BEGINNING THE TRAINING...")
+    print("so far:%d" % epochs_trained_so_far)
+
     if num_epochs_to_train > 0:
         train_kadjk(model, training, validation, num_epochs_to_train, tag_indices,
                     max_mini_batch_size, max_conversation_length,

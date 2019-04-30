@@ -7,7 +7,7 @@ from kadjk import kadjk
 from embedding import read_word2vec, read_glove_twitter, read_fasttext_embedding
 from dataset import load_swda_corpus_data
 from translate import translate_and_store_swda_corpus_test_data
-from helpers import read_word_translation_list_from_file, read_word_list_from_file
+from helpers import read_word_translation_dict_from_file, read_word_set_from_file
 
 models =     {
 #                'Lee-Dernoncourt': lee_dernoncourt,
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--loss-function', type=str, help='Loss function to use.')
     parser.add_argument('--optimizer', type=str, help='Optimizer to use.')
     parser.add_argument('--save-model', type=str, metavar=('SAVE_FILE_PATH'), help='Save model to a .h5 file once training is complete.')
-    parser.add_argument('--load-model', type=str, help='Load pretrained model from a .h5 file and print its accuracy.')
+    parser.add_argument('--load-model', nargs=2, metavar=('PATH', 'PREV_EPOCHS'), type=str, help='Load pretrained model from a .h5 file and print its accuracy.')
     parser.add_argument('--shuffle-words', action='store_true', help='Shuffle the order of the words in utterances for training dataset.')
 
     parser.add_argument('--train', nargs=1, metavar=('NUM_EPOCHS'), type=int, help='Train the specified network for given number of epochs.')
@@ -138,7 +138,13 @@ if __name__ == "__main__":
 
             language_to_translate = None
             parameters = default_parameters[args.model]
-            load_from_model_file = args.load_model
+            if args.load_model is not None:
+                load_from_model_file = args.load_model[0]
+                previous_training_epochs = int(args.load_model[1])
+            else:
+                load_from_model_file = None
+                previous_training_epochs = 0
+                
             save_model_to_file = args.save_model
             num_epochs_to_train = 0
 
@@ -163,31 +169,34 @@ if __name__ == "__main__":
 
             shuffle_words = args.shuffle_words
 
-            word_translation_list = None
-            translation_list_file = None
+            word_translation_set = None
+            translation_set_file = None
             if args.feed_words_to_translate:
-                word_translation_list = read_word_list_from_file(args.feed_words_to_translate[0])
+                word_translation_set = read_word_set_from_file(args.feed_words_to_translate[0])
             if args.store_words_to_translate:
-                translation_list_file = args.store_words_to_translate[0]
+                translation_set_file = args.store_words_to_translate[0]
                 
-            translated_word_list = None
-            translated_list_file = None
+            translated_word_dict = None
+            translated_pairs_file = None
+            translation_complete = False
             if args.feed_translated_words:
-                translated_word_list = read_word_translation_list_from_file(args.feed_translated_words[0])
+                translation_complete, translated_word_dict = read_word_translation_dict_from_file(args.feed_translated_words[0])
             if args.store_translated_words:
-                translated_list_file = args.store_translated_words[0]
+                translated_pairs_file = args.store_translated_words[0]
                 
 
             model(dataset_loading_function, dataset_file_path,
                   embedding_loading_function,
                   source_lang, source_lang_embedding_file,
                   target_lang, target_lang_embedding_file,
-                  translation_list_file,
-                  word_translation_list,
-                  translated_list_file,
-                  translated_word_list,
+                  translation_set_file,
+                  word_translation_set,
+                  translated_pairs_file,
+                  translated_word_dict,
+                  translation_complete,
                   target_test_data_path,
                   num_epochs_to_train, parameters['loss'], parameters['optimizer'],
-                  shuffle_words, load_from_model_file, save_model_to_file)
+                  shuffle_words, load_from_model_file, previous_training_epochs,
+                  save_model_to_file)
         else:
             print("Please enter all the required arguments. Use --help to review required arguments.")
