@@ -66,8 +66,8 @@ if __name__ == "__main__":
     parser.add_argument('--feed-translated-words', nargs=1, metavar=('PATH'), type=str, help='Feed a list of translated words in the dataset. (used as a checkpoint to not find out the words to translate each time)')
     parser.add_argument('--store-translated-words', nargs=1, metavar=('PATH'), type=str, help='Store a list of translated words in the dataset. (used as a checkpoint to not find out the words to translate each time)')
 
-    parser.add_argument('--source-language', nargs=2, metavar=('LANG', 'PATH'), type=str, help='Source language, and the path to the relevant monolingual embedding file.')
-    parser.add_argument('--target-language', nargs=2, metavar=('LANG', 'PATH'), type=str, help='Target language, and the path to the relevant monolingual embedding file.')
+    parser.add_argument('--source-language', nargs=3, metavar=('LANG', 'PATH', 'MATRIX_PATH'), type=str, help='Source language, and the path to the relevant monolingual embedding file.')
+    parser.add_argument('--target-language', nargs=3, metavar=('LANG', 'PATH', 'MATRIX_PATH'), type=str, help='Target language, and the path to the relevant monolingual embedding file.')
     parser.add_argument('--target-testing-data', nargs=1, metavar=('LANG'), type=str, help='Source language.')
     parser.add_argument('--use-translated-tests', nargs=2, metavar=('LANG', 'PATH'), type=str, help='Use translated test data.')
     parser.add_argument('--embedding', nargs=1, metavar=('TYPE'), type=str, help='Embedding to use.')
@@ -132,6 +132,8 @@ if __name__ == "__main__":
             target_lang = args.target_language[0]
             source_lang_embedding_file = args.source_language[1]
             target_lang_embedding_file = args.target_language[1]
+            source_lang_transformation_file = args.source_language[2]
+            target_lang_transformation_file = args.target_language[2]
 
             dataset_loading_function = datasets[args.dataset[0]]
             dataset_file_path = args.dataset[1]
@@ -187,8 +189,8 @@ if __name__ == "__main__":
 
             model(dataset_loading_function, dataset_file_path,
                   embedding_loading_function,
-                  source_lang, source_lang_embedding_file,
-                  target_lang, target_lang_embedding_file,
+                  source_lang, source_lang_embedding_file, source_lang_transformation_file,
+                  target_lang, target_lang_embedding_file, target_lang_transformation_file,
                   translation_set_file,
                   word_translation_set,
                   translated_pairs_file,

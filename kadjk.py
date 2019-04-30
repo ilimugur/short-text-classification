@@ -218,8 +218,8 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
 
 def kadjk(dataset_loading_function, dataset_file_path,
           embedding_loading_function, 
-          source_lang, source_lang_embedding_file,
-          target_lang, target_lang_embedding_file,
+          source_lang, source_lang_embedding_file, source_lang_transformation_file,
+          target_lang, target_lang_embedding_file, target_lang_transformation_file,
           translation_set_file,
           word_translation_set,
           translated_pairs_file,
@@ -275,12 +275,9 @@ def kadjk(dataset_loading_function, dataset_file_path,
     if not translation_complete:
         source_dictionary = FastVector(vector_file=source_lang_embedding_file)
         print("Source monolingual language data loaded successfully.")
-        transformation_matrix_path='fastText_multilingual/alignment_matrices/%s.txt'
-        source_transform_matrix_file = transformation_matrix_path % source_lang
-        target_transform_matrix_file = transformation_matrix_path % target_lang
-        source_dictionary.apply_transform(source_transform_matrix_file)
+        source_dictionary.apply_transform(source_lang_transformation_file)
         print("Transformation data applied to source language.")
-        target_dictionary.apply_transform(target_transform_matrix_file)
+        target_dictionary.apply_transform(target_lang_transformation_file)
         print("Transformation data applied to target language.")
         print("Translating words seen in dataset:")
 
