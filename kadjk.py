@@ -248,14 +248,12 @@ def kadjk(dataset_loading_function, dataset_file_path,
             for u in c[0]:
                 for word in u:
                     if talk_names[k] not in test_set_idx:
-                        src_word_set.append(word.lower())
+                        src_word_set.add(word.lower())
         if translation_set_file is not None:
             write_word_set_to_file(translation_set_file, src_word_set)
     else:
         src_word_set = word_translation_set
 
-    total_words = len(src_word_set)
-    total_translated_words = len(translated_word_dict)
     total_not_found_words = 0
 
     if translated_word_dict is not None:
@@ -264,6 +262,9 @@ def kadjk(dataset_loading_function, dataset_file_path,
                 total_not_found_words += 1
     else:
         translated_word_dict = {}
+
+    total_words = len(src_word_set)
+    total_translated_words = len(translated_word_dict)
 
     print("Found %d translated word pairs." % total_translated_words)
 
