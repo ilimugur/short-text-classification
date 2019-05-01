@@ -59,7 +59,7 @@ datasets = [('fasttextwiki/', 'wiki.%s.vec'),
              ('fasttext157/', 'cc.%s.300.vec')]
 for prefix, file_format in datasets:
     monolingual_language_files_path = '../word-embeddings/%smonolingual/' % prefix
-    training_matrices_path = ('alignment_matrices/%s' % prefix) + 'expert/%s.txt'
+    training_matrices_path = ('alignment_matrices/%s' % prefix) + 'automated/%s.txt'
     source_dictionary = FastVector(vector_file=monolingual_language_files_path + (file_format % 'en') )
     dimension = None
     for language in target_languages:
