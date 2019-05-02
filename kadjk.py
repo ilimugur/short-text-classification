@@ -290,7 +290,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
                                                                                source_dictionary, 1500,
                                                                                recalculate=False)
     #                translation = target_dictionary.translate_nearest_neighbor(source_dictionary[word])
-                    translated_word_dict[w] = translation
+                    translated_word_dict[ word ] = translation
                     total_translated_words += 1
                 except KeyError as e:
                     pass
