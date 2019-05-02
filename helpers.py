@@ -306,7 +306,7 @@ def read_word_translation_dict_from_file(file_path):
     list_complete = False
     with open(file_path, 'r') as f:
         for line in f:
-            tokens_found = line.rstrip().split()
+            tokens_found = line.rstrip().split(' ')
             num_tokens = len(tokens_found)
             if num_tokens == 2:
                 word_translation_dict[tokens_found[0]] = tokens_found[1]
