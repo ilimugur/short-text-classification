@@ -45,6 +45,17 @@ def learn_transformation(source_matrix, target_matrix, normalize_vectors=True):
     # return orthogonal transformation which aligns source language to the target
     return np.matmul(U, V)
 
+def import_expert_signal(file_path):
+    word_pairs = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            word_pair_list = line.split()
+            if len(word_pair_list) == 2:
+                word_pair_list.reverse() # exper signal word pairs are given in reverse
+                word_pairs.append(tuple(word_pair_list))
+    return word_pairs
+            
+
 def save_trained_matrix_to_file(matrix_path, matrix):
     with open(matrix_path, 'w') as f:
         for i in range(matrix.shape[0]):
@@ -53,36 +64,48 @@ def save_trained_matrix_to_file(matrix_path, matrix):
                 s += ' %s' % np.format_float_scientific(matrix[i][j], unique=False, precision=18)
             f.write('%s\n' % s)
 
-target_languages = ['de', 'es', 'tr']
+source_languages = ['de', 'es', 'tr']
 datasets = [('fasttextwiki/', 'wiki.%s.vec'),
              ('conll17word2vec/', 'conll17.%s.txt'),
              ('fasttext157/', 'cc.%s.300.vec')]
+dictionaries = ['expert', 'automated']
+
 for prefix, file_format in datasets:
     monolingual_language_files_path = '../word-embeddings/%smonolingual/' % prefix
-    training_matrices_path = ('alignment_matrices/%s' % prefix) + 'automated/%s.txt'
-    source_dictionary = FastVector(vector_file=monolingual_language_files_path + (file_format % 'en') )
-    dimension = None
-    for language in target_languages:
-        target_dictionary = FastVector(vector_file=monolingual_language_files_path +
-                                                   (file_format % language))
+    target_dictionary = FastVector(vector_file=monolingual_language_files_path + (file_format % 'en') )
+    target_words = set(target_dictionary.word2id.keys())
 
-        source_words = set(source_dictionary.word2id.keys())
-        target_words = set(target_dictionary.word2id.keys())
-        overlap = list(source_words & target_words)
-        bilingual_dictionary = [(entry, entry) for entry in overlap]
+    for signal in dictionaries:
+        training_matrices_path = ('alignment_matrices/%s' % prefix) + signal + '/%s.txt'
+        dimension = None
+        for language in source_languages:
+            source_dictionary = FastVector(vector_file=monolingual_language_files_path +
+                                                       (file_format % language))
 
-        source_matrix, target_matrix = make_training_matrices(
-            source_dictionary, target_dictionary, bilingual_dictionary)
+            source_words = set(source_dictionary.word2id.keys())
 
-        del target_dictionary
+            if signal is 'automated':
+                # For pseudo-dictionary training
+                overlap = list(target_words & source_words)
+                bilingual_dictionary = [(entry, entry) for entry in overlap]
+            else:
+                # For expert dictionary training
+                expert_dictionary_path = '../word-embeddings/%sexpert/train/dict.en.%s.txt' %\
+                                         (prefix, language)
+                bilingual_dictionary = import_expert_signal(expert_dictionary_path)
 
-        transform = learn_transformation(source_matrix, target_matrix)
-        dimension = transform.shape[0]
+            source_matrix, target_matrix = make_training_matrices(
+                source_dictionary, target_dictionary, bilingual_dictionary)
 
-        save_file = training_matrices_path % language
-        save_trained_matrix_to_file(save_file, transform)
-        print('Saved training matrix for \'%s\' to %s'% (language, save_file))
-    source_transform = np.identity(dimension, dtype = float)
-    save_file = training_matrices_path % 'en'
-    save_trained_matrix_to_file(training_matrices_path % 'en', source_transform)
-    print('Saved training matrix for \'en\' to %s' % save_file)
+            del source_dictionary
+
+            transform = learn_transformation(source_matrix, target_matrix)
+            dimension = transform.shape[0]
+
+            save_file = training_matrices_path % language
+            save_trained_matrix_to_file(save_file, transform)
+            print('Saved training matrix for \'%s\' to %s'% (language, save_file))
+        target_transform = np.identity(dimension, dtype = float)
+        save_file = training_matrices_path % 'en'
+        save_trained_matrix_to_file(training_matrices_path % 'en', target_transform)
+        print('Saved training matrix for \'en\' to %s' % save_file)
