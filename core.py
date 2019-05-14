@@ -124,21 +124,26 @@ if __name__ == "__main__":
     else:
         if args.model and args.embedding and args.dataset and\
            models[args.model] and embeddings[args.embedding[0]] and datasets[args.dataset[0]] and\
-           args.target_language[0] in supported_languages:
+           (not args.target_language or args.target_language[0] in supported_languages):
             model = models[args.model]
             embedding_loading_function = embeddings[args.embedding[0]]
 
             source_lang = args.source_language[0]
-            target_lang = args.target_language[0]
             source_lang_embedding_file = args.source_language[1]
-            target_lang_embedding_file = args.target_language[1]
             source_lang_transformation_file = args.source_language[2]
-            target_lang_transformation_file = args.target_language[2]
+            target_lang = None
+            target_lang_embedding_file = None
+            target_lang_transformation_file = None
+            target_test_data_path = None
+            if args.target_language:
+                target_lang = args.target_language[0]
+                target_lang_embedding_file = args.target_language[1]
+                target_lang_transformation_file = args.target_language[2]
+                target_test_data_path = args.target_testing_data[0]
 
             dataset_loading_function = datasets[args.dataset[0]]
             dataset_file_path = args.dataset[1]
 
-            language_to_translate = None
             parameters = default_parameters[args.model]
             if args.load_model is not None:
                 load_from_model_file = args.load_model[0]
@@ -149,10 +154,6 @@ if __name__ == "__main__":
                 
             save_model_to_file = args.save_model
             num_epochs_to_train = 0
-
-            language_to_translate = None
-            translation_path = None
-            target_test_data_path = args.target_testing_data[0]
 
             if args.loss_function:
                 loss_valid = check_keras_option_validity(args.loss_function,
