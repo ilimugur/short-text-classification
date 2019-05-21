@@ -186,7 +186,9 @@ def kadjk_batch_generator(dataset_x, dataset_y, tag_indices,
 
     # Shuffle the order of batches
     index_list = [x for x in range(num_mini_batches)]
-    random.shuffle(index_list)
+    #random.shuffle(index_list)
+
+    total = 0
 
     k = -1
     while True:
@@ -225,6 +227,7 @@ def kadjk_batch_generator(dataset_x, dataset_y, tag_indices,
         batch_labels = numpy.array(label_list)
         del label_list
 
+        total += 1
         yield batch_features, batch_labels
 
 
@@ -294,22 +297,25 @@ def train_kadjk(model, training, validation, num_epochs_to_train, tag_indices, m
     early_stop = EarlyStopping(monitor='val_loss', patience = 5)
     change_learning_rate = LearningRateScheduler(learning_rate_scheduler)
 
-    model.fit_generator(kadjk_batch_generator(training[0], training[1], tag_indices,
-                                              training_mini_batch_list, max_conversation_length,
-                                              timesteps, num_word_dimensions, num_tags,
-                                              end_of_line_word_index, uninterpretable_label_index),
+    train_generator = kadjk_batch_generator(training[0], training[1], tag_indices,
+                                            training_mini_batch_list, max_conversation_length,
+                                            timesteps, num_word_dimensions, num_tags,
+                                            end_of_line_word_index, uninterpretable_label_index)
+    validation_generator = kadjk_batch_generator(validation[0], validation[1],
+                                                 tag_indices,
+                                                 validation_mini_batch_list, 
+                                                 max_conversation_length, timesteps,
+                                                 num_word_dimensions, num_tags,
+                                                 end_of_line_word_index,
+                                                 uninterpretable_label_index)
+    print("num_training_steps: %d " % num_training_steps)
+    print("num_validation_steps: %d " % num_validation_steps)
+    model.fit_generator(train_generator,
                         steps_per_epoch = num_training_steps,
                         epochs = num_epochs_to_train,
-                        validation_data = kadjk_batch_generator(validation[0], validation[1],
-                                                                tag_indices,
-                                                                validation_mini_batch_list, 
-                                                                max_conversation_length, timesteps,
-                                                                num_word_dimensions, num_tags,
-                                                                end_of_line_word_index,
-                                                                uninterpretable_label_index),
+                        validation_data = validation_generator,
                         validation_steps = num_validation_steps,
-                        callbacks = [early_stop, change_learning_rate],
-                        use_multiprocessing=True)
+                        callbacks = [early_stop, change_learning_rate])
     return model
 
 def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_conversation_length,
@@ -317,14 +323,19 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
                    end_of_line_word_index, uninterpretable_label_index):
     testing_mini_batch_list = form_mini_batches(testing[0], max_mini_batch_size)
     num_testing_steps = len(testing_mini_batch_list)
-    score = model.evaluate_generator(kadjk_batch_generator(testing[0], testing[1],
-                                                           tag_indices,
-                                                           testing_mini_batch_list, 
-                                                           max_conversation_length, timesteps,
-                                                           num_word_dimensions, num_tags,
-                                                           end_of_line_word_index,
-                                                           uninterpretable_label_index),
+    print("num_testing_steps: %d " % num_testing_steps)
+    generator = kadjk_batch_generator(testing[0], testing[1],
+                                      tag_indices,
+                                      testing_mini_batch_list, 
+                                      max_conversation_length, timesteps,
+                                      num_word_dimensions, num_tags,
+                                      end_of_line_word_index,
+                                      uninterpretable_label_index)
+    score = model.evaluate_generator(generator,
                                      steps = num_testing_steps)
+    print(str(model.metrics_names))
+    print(str(score))
+
     return score[1]
 
 def kadjk(dataset_loading_function, dataset_file_path,
@@ -429,7 +440,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
 
     max_mini_batch_size = 64
 
-    print("Previous training epochs:%d", previous_training_epochs)
+    print("Previous training epochs:%d" % previous_training_epochs)
     if load_from_model_file is not None:
         epochs_trained_so_far = previous_training_epochs
         custom_objects = {'CRF': CRF, 'crf_loss': crf_loss, 'crf_accuracy': crf_accuracy}
