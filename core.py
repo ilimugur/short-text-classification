@@ -10,7 +10,7 @@ from translate import translate_and_store_swda_corpus_test_data
 from helpers import read_word_translation_dict_from_file, read_word_set_from_file
 
 models =     {
-#                'Lee-Dernoncourt': lee_dernoncourt,
+                'Lee-Dernoncourt': lee_dernoncourt,
                 'KADJK': kadjk
              }
 

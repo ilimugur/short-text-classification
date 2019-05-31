@@ -5,36 +5,15 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.layers import GlobalMaxPooling1D
 from keras.layers import LSTM
+from keras.callbacks import EarlyStopping
 from keras.utils import to_categorical
-from train_set_preferences import valid_set_idx, test_set_idx
-from helpers import prepare_data
+from train_set_preferences import swda_train_set_idx, swda_valid_set_idx, swda_test_set_idx
+from train_set_preferences import mrda_train_set_idx, mrda_valid_set_idx, mrda_test_set_idx
+from helpers import find_max_utterance_length, find_longest_conversation_length
+from helpers import form_datasets, find_unique_words_in_dataset
+from helpers import vectorize_talks, form_word_vec_dict
 
-def form_datasets(vectorized_talks, talk_names, max_sentence_length, word_dimensions):
-    print('Forming dataset appropriately...')
-    
-    x_train_list = []
-    y_train_list = []
-    x_valid_list = []
-    y_valid_list = []
-    x_test_list = []
-    y_test_list = []
-    t_i = 0
-    for i in range(len(vectorized_talks)):
-        vt = vectorized_talks[i]
-        if talk_names[i] in test_set_idx:
-            x_test_list.append( vt[0] )
-            y_test_list.append( vt[1] )
-        if talk_names[i] in valid_set_idx:
-            x_valid_list.append( vt[0] )
-            y_valid_list.append( vt[1] )
-        else:
-            x_train_list.append( vt[0] )
-            y_train_list.append( vt[1] )
-        t_i += 1
-
-    print('Formed dataset appropriately.')
-    return ((x_train_list, y_train_list), (x_valid_list, y_valid_list), (x_test_list, y_test_list))
-
+from fastText_multilingual.fasttext import FastVector
 
 def lee_dernoncourt_batch_generator(dataset_x, dataset_y, timesteps, num_word_dimensions, num_tags):
     # Create empty arrays to contain batch of features and labels#
@@ -65,7 +44,7 @@ def lee_dernoncourt_batch_generator(dataset_x, dataset_y, timesteps, num_word_di
         yield batch_features, batch_labels
 
 
-def prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
+def prepare_lee_dernoncourt_model(max_conversation_len, timesteps, num_word_dimensions, num_tags,
                                   loss_function, optimizer):
     #Hyperparameters
     n = 100
@@ -74,8 +53,8 @@ def prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
     model.add(LSTM(n, return_sequences = True, input_shape = (timesteps, num_word_dimensions)))
     model.add(GlobalMaxPooling1D())
     model.add(Dropout(0.5))
-    model.add(Dense(num_tags, input_shape=(n, ), activation='tanh'))
-    model.add(Dense(num_tags, input_shape=(num_tags, ), activation='softmax'))
+    model.add(Dense(num_tags, activation='tanh'))
+    model.add(Dense(num_tags, activation='softmax'))
     model.compile(loss = loss_function,
                   optimizer = optimizer,
                   metrics=['accuracy'])
@@ -83,6 +62,8 @@ def prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
 
 def train_lee_dernoncourt(model, training, validation, num_epochs_to_train,
                           timesteps, num_word_dimensions, num_tags):
+    early_stop = EarlyStopping(monitor='val_loss', patience = 10)
+
     num_training_steps = len(training[0])
     num_validation_steps = len(validation[0])
     model.fit_generator(lee_dernoncourt_batch_generator(training[0], training[1],
@@ -94,7 +75,8 @@ def train_lee_dernoncourt(model, training, validation, num_epochs_to_train,
                                                                           timesteps,
                                                                           num_word_dimensions,
                                                                           num_tags),
-                        validation_steps = num_validation_steps)
+                        validation_steps = num_validation_steps,
+                        callbacks = [early_stop])
     return model
 
 def evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num_tags):
@@ -105,16 +87,83 @@ def evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num
                                      steps = num_testing_steps)
     return score[1]
 
-def lee_dernoncourt(dataset_loading_function, dataset_file_path,
-                    embedding_loading_function, embedding_file_path,
+def lee_dernoncourt(dataset, dataset_loading_function, dataset_file_path,
+                    embedding_loading_function, 
+                    source_lang, source_lang_embedding_file, source_lang_transformation_file,
+                    target_lang, target_lang_embedding_file, target_lang_transformation_file,
+                    translation_set_file,
+                    src_word_set,
+                    translated_pairs_file,
+                    translated_word_dict,
+                    translation_complete,
+                    target_test_data_path,
                     num_epochs_to_train, loss_function, optimizer,
-                    shuffle_words, load_from_model_file, save_to_model_file):
-    data, dimensions = prepare_data(dataset_loading_function, dataset_file_path,
-                                    embedding_loading_function, embedding_file_path)
-    vectorized_talks, talk_names, tag_indices = data
-    max_conversation_length, timesteps, num_word_dimensions, num_tags = dimensions
+                    shuffle_words, load_from_model_file, previous_training_epochs,
+                    save_to_model_file):
+    monolingual = target_lang is None
+
+    # Read dataset
+    talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
+    if dataset == 'MRDA':
+        uninterpretable_label_index = tag_indices['d']
+        train_set_idx, valid_set_idx, test_set_idx = mrda_train_set_idx, mrda_valid_set_idx,\
+                                                     mrda_test_set_idx
+    elif dataset == 'SwDA':
+        uninterpretable_label_index = tag_indices['%']
+        train_set_idx, valid_set_idx, test_set_idx = swda_train_set_idx, swda_valid_set_idx,\
+                                                     swda_test_set_idx
+    else:
+        print("Dataset unknown!")
+        exit(0)
+
+    num_tags = len(tag_indices.keys())
+
+    if not monolingual:
+        talks_read, talk_names = read_translated_swda_corpus_data(talks_read, talk_names,
+                                                                  target_test_data_path, target_lang)
+
+    #Prune word data
+#    talks_read_initial = talks_read
+#    talks_read = prune_swda_corpus_data(talks_read_initial)
+#    talks_read_initial.clear()
+    for k, c in enumerate(talks_read):
+        for u in c[0]:
+            for i, word in enumerate(u):
+                u[i] = word.rstrip(',').rstrip('.').rstrip('?').rstrip('!')
+
+    if src_word_set is None:
+        src_word_set = find_unique_words_in_dataset(talks_read, talk_names, test_set_idx,
+                                                    monolingual, translation_set_file)
+
+    if not monolingual:
+        target_word_set = find_unique_words_in_dataset(talks_read, talk_names, test_set_idx,
+                                                       monolingual, include_idx_set_members = True)
+    else:
+        target_word_set = None
+
+    word_vec_dict = form_word_vec_dict(talks_read, talk_names, monolingual,
+                                       src_word_set, target_word_set,
+                                       translated_word_dict, translated_pairs_file,
+                                       source_lang_embedding_file, target_lang_embedding_file,
+                                       source_lang_transformation_file,
+                                       target_lang_transformation_file,
+                                       translation_complete)
+
+    for word, vector in word_vec_dict.items():
+        num_word_dimensions = len(vector)
+        break
+
+    # Transform words in dataset to vectors
+    vectorized_talks = vectorize_talks(talks_read, word_vec_dict, num_word_dimensions)
+    talks_read.clear()
+    word_vec_dict.clear()
+
+    timesteps = find_max_utterance_length(vectorized_talks)
+    max_conversation_len = find_longest_conversation_length(vectorized_talks)
+
     training, validation, testing = form_datasets(vectorized_talks, talk_names,
-                                                      timesteps, num_word_dimensions)
+                                                  test_set_idx, valid_set_idx,
+                                                  train_set_idx)
     vectorized_talks.clear()
     talk_names.clear()
 
@@ -126,18 +175,18 @@ def lee_dernoncourt(dataset_loading_function, dataset_file_path,
     if load_from_model_file:
         model = load_model(load_from_model_file)
     else:
-        model = prepare_lee_dernoncourt_model(timesteps, num_word_dimensions, num_tags,
-                                              loss_function, optimizer)
+        model = prepare_lee_dernoncourt_model(max_conversation_len, timesteps, num_word_dimensions,
+                                              num_tags, loss_function, optimizer)
 
     if num_epochs_to_train > 0:
         train_lee_dernoncourt(model, training, validation, num_epochs_to_train,
                               timesteps, num_word_dimensions, num_tags)
+        if save_to_model_file:
+            model.save(save_to_model_file)
 
+    print("EVALUATING...")
     score = evaluate_lee_dernoncourt(model, testing, timesteps, num_word_dimensions, num_tags)
     print("Accuracy: " + str(score * 100) + "%")
-
-    if save_to_model_file:
-        model.save(save_to_model_file)
 
     return model
 
