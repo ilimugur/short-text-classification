@@ -1,5 +1,4 @@
 import numpy
-from train_set_preferences import valid_set_idx, test_set_idx
 
 def prune_swda_corpus_data(talks):
     print('Pruning SwDA Corpus data...\n')
@@ -338,3 +337,29 @@ def pad_dataset_to_equal_length(dataset):
     for talk in dataset[0]:
         for utterance in talk:
             utterance += [0] * (longest_utterance - len(utterance))
+
+def form_datasets(talks, talk_names, test_set_idx, valid_set_idx, train_set_idx):
+    print('Forming dataset appropriately...')
+    
+    x_train_list = []
+    y_train_list = []
+    x_valid_list = []
+    y_valid_list = []
+    x_test_list = []
+    y_test_list = []
+    t_i = 0
+    for i in range(len(talks)):
+        t = talks[i]
+        if talk_names[i] in test_set_idx:
+            x_test_list.append( t[0] )
+            y_test_list.append( t[1] )
+        if talk_names[i] in valid_set_idx:
+            x_valid_list.append( t[0] )
+            y_valid_list.append( t[1] )
+        if talk_names[i] in train_set_idx:
+            x_train_list.append( t[0] )
+            y_train_list.append( t[1] )
+        t_i += 1
+
+    print('Formed dataset appropriately.')
+    return ((x_train_list, y_train_list), (x_valid_list, y_valid_list), (x_test_list, y_test_list))

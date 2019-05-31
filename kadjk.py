@@ -5,7 +5,7 @@ import numpy
 from keras.models import Sequential
 from keras import regularizers
 from keras.layers import Dense, Dropout
-from keras.layers import GlobalMaxPooling1D
+from keras.layers import GlobalMaxPooling1D, GlobalAveragePooling1D
 from keras.layers import Embedding, LSTM, Bidirectional, TimeDistributed
 from keras.callbacks import EarlyStopping, LearningRateScheduler
 from keras_contrib.layers import CRF
@@ -14,12 +14,14 @@ from keras_contrib.metrics import crf_accuracy
 from keras_contrib.losses import crf_loss
 from keras.models import load_model
 from keras.utils import to_categorical
-from train_set_preferences import valid_set_idx, test_set_idx
+from train_set_preferences import mrda_valid_set_idx, mrda_test_set_idx, mrda_train_set_idx
+from train_set_preferences import swda_valid_set_idx, swda_test_set_idx, swda_train_set_idx
 from translate import read_translated_swda_corpus_data
 from helpers import arrange_word_to_vec_dict, form_word_to_index_dict_from_dataset
 from helpers import find_max_utterance_length, find_longest_conversation_length
 from helpers import write_word_translation_dict_to_file, write_word_set_to_file
 from helpers import pad_dataset_to_equal_length
+from helpers import form_datasets
 
 from fastText_multilingual.fasttext import FastVector
 
@@ -132,32 +134,6 @@ def form_word_vec_dict(talks_read, talk_names, monolingual, src_word_set, target
     return word_vec_dict
 
 
-def form_datasets(talks, talk_names):
-    print('Forming dataset appropriately...')
-    
-    x_train_list = []
-    y_train_list = []
-    x_valid_list = []
-    y_valid_list = []
-    x_test_list = []
-    y_test_list = []
-    t_i = 0
-    for i in range(len(talks)):
-        t = talks[i]
-        if talk_names[i] in test_set_idx:
-            x_test_list.append( t[0] )
-            y_test_list.append( t[1] )
-        if talk_names[i] in valid_set_idx:
-            x_valid_list.append( t[0] )
-            y_valid_list.append( t[1] )
-        else:
-            x_train_list.append( t[0] )
-            y_train_list.append( t[1] )
-        t_i += 1
-
-    print('Formed dataset appropriately.')
-    return ((x_train_list, y_train_list), (x_valid_list, y_valid_list), (x_test_list, y_test_list))
-
 def form_mini_batches(dataset_x, max_mini_batch_size):
     num_conversations = len(dataset_x)
 
@@ -259,7 +235,7 @@ def prepare_kadjk_model(max_mini_batch_size,
     model.add(TimeDistributed(Bidirectional(LSTM(m // 2, return_sequences=True,
                                             kernel_regularizer=regularizers.l2(0.0001)))))
     model.add(TimeDistributed(Dropout(0.2)))
-    model.add(TimeDistributed(GlobalMaxPooling1D()))
+    model.add(TimeDistributed(GlobalAveragePooling1D()))
     model.add(Bidirectional(LSTM(h // 2, return_sequences = True,
                                  kernel_regularizer=regularizers.l2(0.0001)), merge_mode='concat'))
     model.add(Dropout(0.2))
@@ -338,7 +314,7 @@ def evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size, max_convers
 
     return score[1]
 
-def kadjk(dataset_loading_function, dataset_file_path,
+def kadjk(dataset, dataset_loading_function, dataset_file_path,
           embedding_loading_function, 
           source_lang, source_lang_embedding_file, source_lang_transformation_file,
           target_lang, target_lang_embedding_file, target_lang_transformation_file,
@@ -355,7 +331,7 @@ def kadjk(dataset_loading_function, dataset_file_path,
     monolingual = target_lang is None
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
     if not monolingual:
-        read_translated_swda_corpus_data(talks_read, talk_names, target_test_data_path, target_lang)
+        read_translated_swda_corpus_data(dataset, talks_read, talk_names, target_test_data_path, target_lang)
 
     for k, c in enumerate(talks_read):
         for u in c[0]:
@@ -408,8 +384,6 @@ def kadjk(dataset_loading_function, dataset_file_path,
     word_to_index[end_of_line_word] = end_of_line_word_index
     word_vec_dict[end_of_line_word] = numpy.random.random(num_word_dimensions)
 
-    uninterpretable_label_index = tag_indices['%']
-
     talks = [([[word_to_index[w.lower()] for w in u] for u in c[0]], c[1]) for k, c in enumerate(talks_read)]
     talks_read.clear()
 
@@ -417,7 +391,17 @@ def kadjk(dataset_loading_function, dataset_file_path,
     max_conversation_length = find_longest_conversation_length(talks)
     num_tags = len(tag_indices.keys())
 
-    training, validation, testing = form_datasets(talks, talk_names)
+    if dataset == 'MRDA':
+        uninterpretable_label_index = tag_indices['d']
+        training, validation, testing = form_datasets(talks, talk_names, mrda_test_set_idx,
+													  mrda_valid_set_idx, mrda_train_set_idx)
+    elif dataset == 'SwDA':
+        uninterpretable_label_index = tag_indices['%']
+        training, validation, testing = form_datasets(talks, talk_names, swda_test_set_idx,
+													  swda_valid_set_idx, swda_train_set_idx)
+    else:
+        print("Dataset unknown!")
+        exit(0)
     talk_names.clear()
     talks.clear()
 

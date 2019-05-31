@@ -5,7 +5,7 @@ from keras.models import load_model
 from lee_dernoncourt import lee_dernoncourt
 from kadjk import kadjk
 from embedding import read_word2vec, read_glove_twitter, read_fasttext_embedding
-from dataset import load_swda_corpus_data
+from dataset import load_swda_corpus_data, load_mrda_corpus_data
 from translate import translate_and_store_swda_corpus_test_data
 from helpers import read_word_translation_dict_from_file, read_word_set_from_file
 
@@ -21,7 +21,8 @@ embeddings = {
              }
 
 datasets =   {
-                'SwDA': load_swda_corpus_data
+                'SwDA': load_swda_corpus_data,
+                'MRDA': load_mrda_corpus_data
              }
 
 supported_languages =   {
@@ -87,17 +88,23 @@ if __name__ == "__main__":
             language = args.translate_tests_by_word[0]
             translation_path = args.translate_tests_by_word[1]
             if args.dataset and datasets[args.dataset[0]]:
-                dataset_loading_function = datasets[args.dataset[0]]
+                dataset = args.dataset[0]
+                dataset_loading_function = datasets[dataset]
                 dataset_file_path = args.dataset[1]
-                translate_and_store_swda_corpus_test_data(dataset_file_path, translation_path, language, False)
+                translate_and_store_swda_corpus_test_data(dataset, dataset_loading_function,
+                                                          dataset_file_path, translation_path,
+                                                          language, False)
     elif args.translate_tests_by_utterance:
         if args.translate_tests_by_utterance[0] in supported_languages:
             language = args.translate_tests_by_utterance[0]
             translation_path = args.translate_tests_by_utterance[1]
             if args.dataset and datasets[args.dataset[0]]:
-                dataset_loading_function = datasets[args.dataset[0]]
+                dataset = args.dataset[0]
+                dataset_loading_function = datasets[dataset]
                 dataset_file_path = args.dataset[1]
-                translate_and_store_swda_corpus_test_data(dataset_file_path, translation_path, language, True)
+                translate_and_store_swda_corpus_test_data(dataset, dataset_loading_function,
+                                                          dataset_file_path, translation_path,
+                                                          language, True)
     elif args.loss_functions:
         loss_functions = inspect.getmembers(losses, inspect.isfunction)
         print('Loss functions available:')
@@ -141,7 +148,8 @@ if __name__ == "__main__":
                 target_lang_transformation_file = args.target_language[2]
                 target_test_data_path = args.target_testing_data[0]
 
-            dataset_loading_function = datasets[args.dataset[0]]
+            dataset = args.dataset[0]
+            dataset_loading_function = datasets[dataset]
             dataset_file_path = args.dataset[1]
 
             parameters = default_parameters[args.model]
@@ -188,7 +196,7 @@ if __name__ == "__main__":
                 translated_pairs_file = args.store_translated_words[0]
                 
 
-            model(dataset_loading_function, dataset_file_path,
+            model(dataset, dataset_loading_function, dataset_file_path,
                   embedding_loading_function,
                   source_lang, source_lang_embedding_file, source_lang_transformation_file,
                   target_lang, target_lang_embedding_file, target_lang_transformation_file,
