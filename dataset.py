@@ -1,6 +1,7 @@
 from swda.swda import CorpusReader
 from os import listdir
 from os.path import isfile, join
+from train_set_preferences import mrda_train_set_idx, mrda_valid_set_idx, mrda_test_set_idx
 
 def load_swda_corpus_data(swda_directory):
     print('Loading SwDA Corpus...')
@@ -8,9 +9,8 @@ def load_swda_corpus_data(swda_directory):
 
     talks = []
     talk_names = []
-    tags_seen = {}
+    tags_seen = set()
     tag_occurances = {}
-    num_tags_seen = 0
     for transcript in corpus_reader.iter_transcripts(False):
         name = 'sw' + str(transcript.conversation_no)
         talk_names.append(name)
@@ -21,8 +21,7 @@ def load_swda_corpus_data(swda_directory):
             tag = utterance.damsl_act_tag()
             conversation_tags.append( tag )
             if tag not in tags_seen:
-                tags_seen[tag] = num_tags_seen
-                num_tags_seen += 1
+                tags_seen.add(tag)
                 tag_occurances[tag] = 1
             else:
                 tag_occurances[tag] += 1
@@ -30,52 +29,46 @@ def load_swda_corpus_data(swda_directory):
 
     print('\nFound ' + str(len(tags_seen))+ ' different utterance tags.\n')
 
+    tag_indices = {tag:i for i, tag in enumerate(sorted(list(tags_seen)))}
+
     for talk in talks:
         talk_tags = talk[1]
         for i, tag in enumerate(talk_tags):
-            talk_tags[i] = tags_seen[ tag ]
+            talk_tags[i] = tag_indices[ tag ]
 
     print('Loaded SwDA Corpus.')
-    return talks, talk_names, tags_seen, tag_occurances
+    return talks, talk_names, tag_indices, tag_occurances
 
 def load_mrda_corpus_data(mrda_directory):
     print('Loading MRDA Corpus...')
 
     talks = []
     talk_names = []
-    tags_seen = {}
+    tags_seen = set()
     tag_occurances = {}
-    num_tags_seen = 0
 
-    file_list = [f for f in listdir(mrda_directory) if isfile(join(mrda_directory, f))]
-    talk_names_set = set(f.split('.')[0] for f in file_list)
+    talk_names_set = mrda_train_set_idx.union(mrda_valid_set_idx).union(mrda_test_set_idx)
     talk_names = list(talk_names_set)
-    print(talk_names)
+    file_list = [f for f in listdir(mrda_directory) if isfile(join(mrda_directory, f))]
+    file_list = list(filter(lambda f: f in talk_names_set, file_list))
+
+
     for talk in talk_names:
-        # Get utterances
-        utterance_map = {}
-        with open(join(mrda_directory, '%s.trans' % talk), 'r') as f:
+        utterances = []
+        tags = []
+        with open(join(mrda_directory, '%s.out' % talk), 'r') as f:
             for line in f:
                 line_components = line.split(',')
                 utterance_id = line_components[0]
-                utterance = line_components[1]
-                separated_utterances = [utterance.split() for utterance in utterance.split('|')]
-                utterance_map[utterance_id] = separated_utterances
-
-        # Get tag
-        tags = []
-        utterances = []
-        with open(join(mrda_directory, '%s.dadb' % talk), 'r') as f:
-            for line in f:
-                utterance_data_components = line.split(',')
-                utterance_id = utterance_data_components[2]
-                da_label = utterance_data_components[5]
-
-                tag_to_use = da_label
-                if len(tag_to_use) == 0:
+                utter_text = line_components[1]
+                utter_speech_act = line_components[3]
+                if len(utter_speech_act) == 0:
                     continue
+                utterances_to_add = []
+                for utterance in utter_text.split('|'):
+                    utterances_to_add.append(utterance.split())
 
-                separated_tags = tag_to_use.split('|')
+                separated_tags = utter_speech_act.split('|')
                 if '.' in separated_tags[-1]:
                     last_tag = separated_tags[-1]
                     separated_tags = separated_tags[:-1] + last_tag.split('.', 1)
@@ -86,7 +79,9 @@ def load_mrda_corpus_data(mrda_directory):
                     tags_to_add.append('d')
                 elif len(separated_tags) == 1 and separated_tags[0][0] == 'z':
                     #Purposefully untagged utterance
-                    continue
+                    for utter in utterances_to_add:
+                        tags_to_add.append('z')
+                    #continue
                 else:
                     for tag in separated_tags:
                         tag_initial = tag[0]
@@ -103,34 +98,31 @@ def load_mrda_corpus_data(mrda_directory):
                             print("Tag in question: %s" % tag)
                             exit(0)
 
-                        if tag_initial not in tags_seen:
-                            tags_seen[tag_initial] = num_tags_seen
-                            num_tags_seen += 1
-                            tag_occurances[tag_initial] = 1
-                        else:
-                            tag_occurances[tag_initial] += 1
-
                         tags_to_add.append(tag_initial)
 
-                utterance_to_add = utterance_map[utterance_id]
+                for tag in tags_to_add:
+                    if tag in tag_occurances:
+                        tag_occurances[tag] += 1
+                    else:
+                        tags_seen.add(tag)
+                        tag_occurances[tag] = 1
 
-                if len(utterance_to_add) == len(tags_to_add) - 1 and tags_to_add[-1] == 'd':
+                if len(utterances_to_add) == len(tags_to_add) - 1 and tags_to_add[-1] == 'd':
                     del tags_to_add[-1]
-                elif len(utterance_to_add) != len(tags_to_add):
-                    print("PROBLEM:")
+                elif len(utterances_to_add) != len(tags_to_add):
+                    print("PROBLEM A:")
                     print("Tags are not equal to utterances!")
                     print("Talk name: %s" % talk)
                     print("Utterance ID: %s" % utterance_id)
                     print("DA Label: %s" % tag_to_use)
                     print("Tag in question: %s" % tag)
-                    print("len(utterance_to_add): %d" % len(utterance_to_add))
+                    print("len(utterance_to_add): %d" % len(utterances_to_add))
                     print("len(tags_to_add): %d" % len(tags_to_add))
-                    print("utterance_to_add: %s" % str(utterance_to_add))
+                    print("utterance_to_add: %s" % str(utterances_to_add))
                     print("tags_to_add: %s" % str(tags_to_add))
-                    exit(0)
+
+                utterances += utterances_to_add
                 tags += tags_to_add
-                utterances += utterance_to_add
-#                print("%s\t%s" % (str(tags_to_add), str(utterance_to_add)))
 
         if len(utterances) != len(tags):
             print("PROBLEM:")
@@ -142,10 +134,13 @@ def load_mrda_corpus_data(mrda_directory):
 
     print('\nFound ' + str(len(tags_seen))+ ' different utterance tags.\n')
 
+    tag_indices = {tag:i for i, tag in enumerate(sorted(list(tags_seen)))}
+
     for talk in talks:
         talk_tags = talk[1]
         for i, tag in enumerate(talk_tags):
-            talk_tags[i] = tags_seen[ tag ]
+            talk_tags[i] = tag_indices[ tag ]
 
     print('Loaded MRDA Corpus.')
-    return talks, talk_names, tags_seen, tag_occurances
+
+    return talks, talk_names, tag_indices, tag_occurances

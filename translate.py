@@ -87,7 +87,7 @@ def translate_and_store_swda_corpus_test_data(dataset, dataset_loading_function,
                 f.write(str(tag) + '\n')
             f.close()
 
-def read_translated_swda_corpus_data(talks_read, talk_names, translation_file_path, language, use_utterance_translation = True):
+def read_translated_swda_corpus_data(dataset, talks_read, talk_names, translation_file_path, language, use_utterance_translation = True):
     if use_utterance_translation:
         unit_str = 'u'
     else:

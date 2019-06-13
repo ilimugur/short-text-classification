@@ -1,5 +1,6 @@
 import numpy
 from fastText_multilingual.fasttext import FastVector
+from train_set_preferences import swda_test_set_idx, mrda_test_set_idx
 
 def prune_swda_corpus_data(talks):
     print('Pruning SwDA Corpus data...\n')
@@ -256,7 +257,7 @@ def arrange_word_to_vec_dict(talks, talk_names, source_lang, target_lang,
 def form_word_to_index_dict_from_dataset(word_vec_dict):
     word_to_index = {}
     next_index_to_assign = 1
-    for key in word_vec_dict.keys():
+    for key in sorted(word_vec_dict.keys()):
         word_to_index[key] = next_index_to_assign
         next_index_to_assign += 1
     return word_to_index
@@ -303,15 +304,10 @@ def write_word_translation_dict_to_file(file_path, word_translation_dict, is_fin
         if is_finished:
             f.write('%d\n' % len(word_translation_dict))
 
-def pad_dataset_to_equal_length(dataset):
-    longest_utterance = 0
+def pad_dataset_to_equal_length(dataset, max_utterance_len):
     for talk in dataset[0]:
         for utterance in talk:
-            longest_utterance = max(longest_utterance, len(utterance))
-
-    for talk in dataset[0]:
-        for utterance in talk:
-            utterance += [0] * (longest_utterance - len(utterance))
+            utterance += [0] * (max_utterance_len - len(utterance))
 
 def form_datasets(talks, talk_names, test_set_idx, valid_set_idx, train_set_idx):
     print('Forming dataset appropriately...')
@@ -340,7 +336,7 @@ def form_datasets(talks, talk_names, test_set_idx, valid_set_idx, train_set_idx)
     return ((x_train_list, y_train_list), (x_valid_list, y_valid_list), (x_test_list, y_test_list))
 
 def find_unique_words_in_dataset(talks_read, talk_names, talk_idx, monolingual,
-                                 translation_set_file = None, include_idx_set_members = False):
+                                 include_idx_set_members = False):
     talk_is_included = lambda c : ( c in talk_idx if include_idx_set_members else c not in talk_idx)
 
     word_set = set()
@@ -349,8 +345,6 @@ def find_unique_words_in_dataset(talks_read, talk_names, talk_idx, monolingual,
             for u in c[0]:
                 for word in u:
                     word_set.add(word.lower())
-    if translation_set_file is not None:
-        write_word_set_to_file(translation_set_file, word_set)
 
     return word_set
 
@@ -371,11 +365,19 @@ def add_words_to_word_vec_dict(word_vec_dict, word_set, dictionary, translations
     print("word_vec_dict size: %d" % len(word_vec_dict))
 
 
-def form_word_vec_dict(talks_read, talk_names, monolingual, src_word_set, target_word_set,
+def form_word_vec_dict(dataset, talks_read, talk_names, monolingual, src_word_set, target_word_set,
                        translated_word_dict, translated_pairs_file,
                        source_lang_embedding_file, target_lang_embedding_file,
                        source_lang_transformation_file, target_lang_transformation_file,
                        translation_complete):
+    if dataset == 'SwDA':
+        test_set_idx = swda_test_set_idx
+    elif dataset == 'MRDA':
+        test_set_idx = mrda_test_set_idx
+    else:
+        print("Dataset unknown!")
+        exit(0)
+
     if monolingual:
         source_dictionary = FastVector(vector_file=source_lang_embedding_file)
         word_vec_dict = {}
@@ -462,5 +464,3 @@ def form_word_vec_dict(talks_read, talk_names, monolingual, src_word_set, target
         del translated_word_dict
 
     return word_vec_dict
-
-

@@ -6,12 +6,14 @@ from keras.layers import Dense, Dropout
 from keras.layers import GlobalMaxPooling1D
 from keras.layers import LSTM
 from keras.callbacks import EarlyStopping
+from keras.models import load_model
 from keras.utils import to_categorical
 from train_set_preferences import swda_train_set_idx, swda_valid_set_idx, swda_test_set_idx
 from train_set_preferences import mrda_train_set_idx, mrda_valid_set_idx, mrda_test_set_idx
 from helpers import find_max_utterance_length, find_longest_conversation_length
 from helpers import form_datasets, find_unique_words_in_dataset
 from helpers import vectorize_talks, form_word_vec_dict
+from translate import read_translated_swda_corpus_data
 
 from fastText_multilingual.fasttext import FastVector
 
@@ -119,7 +121,7 @@ def lee_dernoncourt(dataset, dataset_loading_function, dataset_file_path,
     num_tags = len(tag_indices.keys())
 
     if not monolingual:
-        talks_read, talk_names = read_translated_swda_corpus_data(talks_read, talk_names,
+        talks_read, talk_names = read_translated_swda_corpus_data(dataset, talks_read, talk_names,
                                                                   target_test_data_path, target_lang)
 
     #Prune word data
@@ -141,7 +143,7 @@ def lee_dernoncourt(dataset, dataset_loading_function, dataset_file_path,
     else:
         target_word_set = None
 
-    word_vec_dict = form_word_vec_dict(talks_read, talk_names, monolingual,
+    word_vec_dict = form_word_vec_dict(dataset, talks_read, talk_names, monolingual,
                                        src_word_set, target_word_set,
                                        translated_word_dict, translated_pairs_file,
                                        source_lang_embedding_file, target_lang_embedding_file,

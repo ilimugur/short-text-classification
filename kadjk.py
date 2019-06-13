@@ -253,7 +253,7 @@ def kadjk(dataset, dataset_loading_function, dataset_file_path,
     else:
         target_word_set = None
 
-    word_vec_dict = form_word_vec_dict(talks_read, talk_names, monolingual,
+    word_vec_dict = form_word_vec_dict(dataset, talks_read, talk_names, monolingual,
                                        src_word_set, target_word_set,
                                        translated_word_dict, translated_pairs_file,
                                        source_lang_embedding_file, target_lang_embedding_file,
@@ -296,9 +296,9 @@ def kadjk(dataset, dataset_loading_function, dataset_file_path,
             for utterance in talk:
                 random.shuffle(utterance)
 
-    pad_dataset_to_equal_length(training)
-    pad_dataset_to_equal_length(validation)
-    pad_dataset_to_equal_length(testing)
+    pad_dataset_to_equal_length(training, timesteps)
+    pad_dataset_to_equal_length(validation, timesteps)
+    pad_dataset_to_equal_length(testing, timesteps)
 
     print("Checking indices of word_to_index:")
     index_to_word = {val:key for key, val in word_to_index.items()}
@@ -336,12 +336,12 @@ def kadjk(dataset, dataset_loading_function, dataset_file_path,
             model.save(save_to_model_file)
 
     print("EVALUATING...")
+
     score = evaluate_kadjk(model, testing, tag_indices, max_mini_batch_size,
                            max_conversation_length, timesteps,
                            num_word_dimensions, num_tags,
                            end_of_line_word_index, uninterpretable_label_index)
 
-    print("Accuracy: " + str(score * 100) + "%")
+    print("Accuracy: %s" % str(score * 100) + "%")
 
     return model
-
