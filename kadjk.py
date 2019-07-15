@@ -54,7 +54,7 @@ def kadjk_batch_generator(dataset_x, dataset_y, tag_indices,
 
     # Shuffle the order of batches
     index_list = [x for x in range(num_mini_batches)]
-    #random.shuffle(index_list)
+    random.shuffle(index_list)
 
     total = 0
 
@@ -124,10 +124,13 @@ def prepare_kadjk_model(max_mini_batch_size,
     model.add(TimeDistributed(embedding_layer,
                               input_shape=(max_conversation_length, timesteps)))
 
-    model.add(TimeDistributed(Bidirectional(LSTM(m // 2, return_sequences=True,
+#    model.add(TimeDistributed(Bidirectional(LSTM(m // 2, return_sequences=True,
+#                                            kernel_regularizer=regularizers.l2(0.0001)))))
+#    model.add(TimeDistributed(Dropout(0.2)))
+#    model.add(TimeDistributed(GlobalAveragePooling1D()))
+    model.add(TimeDistributed(Bidirectional(LSTM(m // 2,
                                             kernel_regularizer=regularizers.l2(0.0001)))))
-    model.add(TimeDistributed(Dropout(0.2)))
-    model.add(TimeDistributed(GlobalAveragePooling1D()))
+    model.add(Dropout(0.2))
     model.add(Bidirectional(LSTM(h // 2, return_sequences = True,
                                  kernel_regularizer=regularizers.l2(0.0001)), merge_mode='concat'))
     model.add(Dropout(0.2))
@@ -224,7 +227,7 @@ def kadjk(dataset, dataset_loading_function, dataset_file_path,
 
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
     if dataset == 'MRDA':
-        uninterpretable_label_index = tag_indices['d']
+        uninterpretable_label_index = tag_indices['z']
         train_set_idx, valid_set_idx, test_set_idx = mrda_train_set_idx, mrda_valid_set_idx,\
                                                      mrda_test_set_idx
     elif dataset == 'SwDA':

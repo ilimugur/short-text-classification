@@ -107,7 +107,7 @@ def lee_dernoncourt(dataset, dataset_loading_function, dataset_file_path,
     # Read dataset
     talks_read, talk_names, tag_indices, tag_occurances = dataset_loading_function(dataset_file_path)
     if dataset == 'MRDA':
-        uninterpretable_label_index = tag_indices['d']
+        uninterpretable_label_index = tag_indices['z']
         train_set_idx, valid_set_idx, test_set_idx = mrda_train_set_idx, mrda_valid_set_idx,\
                                                      mrda_test_set_idx
     elif dataset == 'SwDA':
